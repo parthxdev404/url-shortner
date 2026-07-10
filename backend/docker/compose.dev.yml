@@ -1,23 +1,21 @@
 services:
-
   backend:
-
     build:
-      context: .
-      target: development
+      context: ..
+      dockerfile: docker/Dockerfile.dev
 
-    container_name: url-shortener-api
+    container_name: url-shortener-backend
 
     restart: unless-stopped
+
+    env_file:
+      - ../.env
 
     ports:
       - "5000:5000"
 
-    env_file:
-      - .env
-
     volumes:
-      - .:/app
+      - ../:/app
       - /app/node_modules
 
     depends_on:
@@ -25,13 +23,12 @@ services:
       - redis
 
     networks:
-      - app-network
+      - url-shortener-network
 
   mongo:
-
     image: mongo:8
 
-    container_name: mongo-db
+    container_name: url-shortener-mongo
 
     restart: unless-stopped
 
@@ -46,13 +43,12 @@ services:
       - mongo-data:/data/db
 
     networks:
-      - app-network
+      - url-shortener-network
 
   redis:
-
     image: redis:8-alpine
 
-    container_name: redis-cache
+    container_name: url-shortener-redis
 
     restart: unless-stopped
 
@@ -63,14 +59,11 @@ services:
       - redis-data:/data
 
     networks:
-      - app-network
+      - url-shortener-network
 
 volumes:
-
   mongo-data:
-
   redis-data:
 
 networks:
-
-  app-network:
+  url-shortener-network:

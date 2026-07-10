@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.prod
+
+    container_name: url-shortener-backend
+
+    restart: always
+
+    env_file:
+      - ../.env
+
+    ports:
+      - "5000:5000"
+
+    depends_on:
+      - mongo
+      - redis
+
+    networks:
+      - url-shortener-network
+
+  mongo:
+    image: mongo:8
+
+    restart: always
+
+    volumes:
+      - mongo-data:/data/db
+
+    networks:
+      - url-shortener-network
+
+  redis:
+    image: redis:8-alpine
+
+    restart: always
+
+    volumes:
+      - redis-data:/data
+
+    networks:
+      - url-shortener-network
+
+volumes:
+  mongo-data:
+  redis-data:
+
+networks:
+  url-shortener-network:

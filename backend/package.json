@@ -9,10 +9,11 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "docker:dev": "docker compose -f docker/compose.dev.yml up --build",
+    "docker:dev:down": "docker compose -f docker/compose.dev.yml down",
+    "docker:prod": "docker compose -f docker/compose.prod.yml up --build",
+    "docker:prod:down": "docker compose -f docker/compose.prod.yml down",
+    "docker:logs": "docker compose -f docker/compose.dev.yml logs -f"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "envalid": "^8.2.0",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
     "http-status-codes": "^2.3.0",
