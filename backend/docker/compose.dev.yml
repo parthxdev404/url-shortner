@@ -2,14 +2,14 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.dev
+      dockerfile: docker/DockerFile.dev
 
     container_name: url-shortener-backend
 
     restart: unless-stopped
 
     env_file:
-      - ../.env
+      - ../.env.docker
 
     ports:
       - "5000:5000"
@@ -52,8 +52,8 @@ services:
 
     restart: unless-stopped
 
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379"
 
     volumes:
       - redis-data:/data
