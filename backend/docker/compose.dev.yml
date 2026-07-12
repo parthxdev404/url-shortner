@@ -11,6 +11,9 @@ services:
     env_file:
       - ../.env
 
+    ports:
+      - "5000:5000"
+
     volumes:
       - ../:/app
       - /app/node_modules
@@ -54,3 +57,4 @@ volumes:
 
 networks:
   url-shortener-network:
+    driver: bridge
