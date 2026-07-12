@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../shared/errors';
 import { logger } from '../config/logger';
 
-export const errorHandler = (error: Error, req: Request, res: Response, next: NextFunction) => {
+export const errorHandler = (error: Error, req: Request, res: Response, _next: NextFunction) => {
   logger.error({
     err: error,
     requestId: req.headers['x-request-id'],

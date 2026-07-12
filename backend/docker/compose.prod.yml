@@ -6,10 +6,10 @@ services:
 
     container_name: url-shortener-backend
 
-    restart: always
+    restart: unless-stopped
 
     env_file:
-      - ../.env
+      - ../.env.docker
 
     ports:
       - "5000:5000"
@@ -24,7 +24,9 @@ services:
   mongo:
     image: mongo:8
 
-    restart: always
+    container_name: url-shortener-mongo
+
+    restart: unless-stopped
 
     volumes:
       - mongo-data:/data/db
@@ -35,7 +37,9 @@ services:
   redis:
     image: redis:8-alpine
 
-    restart: always
+    container_name: url-shortener-redis
+
+    restart: unless-stopped
 
     volumes:
       - redis-data:/data
