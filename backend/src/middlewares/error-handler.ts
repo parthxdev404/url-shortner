@@ -2,20 +2,31 @@ import { Request, Response, NextFunction } from 'express';
 
 import { AppError } from '../shared/errors';
 import { logger } from '../config/logger';
+import { StatusCodes } from 'http-status-codes';
 
-export const errorHandler = (error: Error, req: Request, res: Response, _next: NextFunction) => {
+export function errorHandler(
+  error: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   logger.error({
     err: error,
-    requestId: req.headers['x-request-id'],
+    path: req.originalUrl,
+    method: req.method,
   });
+
   if (error instanceof AppError) {
-    return res.status(error.statusCode).json({
+    res.status(error.statusCode).json({
       success: false,
       message: error.message,
     });
+
+    return;
   }
-  return res.status(500).json({
+
+  res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
     success: false,
-    message: 'Internal Server Error',
+    message: "Internal Server Error",
   });
-};
+}
