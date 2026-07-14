@@ -6,9 +6,9 @@ import { asyncHandler } from '../../../middlewares/async-handler';
 
 class UrlController {
   createShortUrl = asyncHandler(async (req: Request, res: Response) => {
-    const { originalUrl } = req.body;
+    const { originalUrl, customAlias } = req.body;
 
-    const url = await urlService.createShortUrl(originalUrl);
+    const url = await urlService.createShortUrl(originalUrl, customAlias);
 
     res.status(StatusCodes.CREATED).json({
       success: true,
@@ -17,24 +17,15 @@ class UrlController {
     });
   });
 
-  redirect = asyncHandler(async (req: Request, res: Response) => {
-    const shortCode = req.params.shortCode as string;
+ redirect = asyncHandler(async (req: Request, res: Response) => {
+  const shortCode = req.params.shortCode as string;
 
-    const url = await urlService.getOriginalUrl(shortCode);
+  const url = await urlService.resolveRedirect(shortCode);
 
-    if (!url) {
-      res.status(StatusCodes.NOT_FOUND).json({
-        success: false,
-        message: 'Short URL not found',
-      });
+  res.redirect(url.originalUrl);
 
-      return;
-    }
-
-    await urlService.incrementClicks(url._id.toString());
-
-    res.redirect(url.originalUrl);
-  });
+void urlService.incrementClicks(url.id);
+});
 
   getById = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;

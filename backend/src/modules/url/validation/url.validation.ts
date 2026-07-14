@@ -6,7 +6,18 @@ export const createShortUrlSchema = z.object({
         .string()
         .trim()
         .url("Please provide a valid Url")
-        .max(2040 , 'Url is too long')
+        .max(2040 , 'Url is too long'),
+
+        customAlias: z
+        .string()
+        .trim()
+        .min(4)
+        .max(30)
+        .regex(
+            /^[a-zA-Z0-9_-]+$/,
+            "Alias can only contain letters, numbers, '-' and '_'"
+        )
+        .optional(),
 
     }),
 })
