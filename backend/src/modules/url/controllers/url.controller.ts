@@ -3,6 +3,8 @@ import { StatusCodes } from 'http-status-codes';
 
 import { urlService } from '../services/url.service';
 import { asyncHandler } from '../../../middlewares/async-handler';
+import { analyticsService } from '../../analytics/services/analytics.service';
+import {UAParser} from 'ua-parser-js';
 
 class UrlController {
   createShortUrl = asyncHandler(async (req: Request, res: Response) => {
@@ -17,14 +19,29 @@ class UrlController {
     });
   });
 
- redirect = asyncHandler(async (req: Request, res: Response) => {
+redirect = asyncHandler(async (req: Request, res: Response) => {
   const shortCode = req.params.shortCode as string;
 
   const url = await urlService.resolveRedirect(shortCode);
 
-  res.redirect(url.originalUrl);
+  const parser = new UAParser(req.get("user-agent") ?? "");
+  const ua = parser.getResult();
 
-void urlService.incrementClicks(url.id);
+  await urlService.incrementClicks(url.id);
+
+  await analyticsService.recordClick({
+    urlId: url._id,
+    ipAddress: req.ip ?? "Unknown",
+    userAgent: req.get("user-agent") ?? "Unknown",
+    referrer: req.get("referer") ?? null,
+    browser: ua.browser.name ?? "Unknown",
+    os: ua.os.name ?? "Unknown",
+    device: ua.device.type ?? "Desktop",
+    country: "Unknown",
+    city: "Unknown",
+  });
+
+  res.redirect(url.originalUrl);
 });
 
   getById = asyncHandler(async (req: Request, res: Response) => {

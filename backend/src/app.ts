@@ -10,6 +10,7 @@ import { requestLogger } from "./middlewares/request-logger.js";
 import { notFound } from "./middlewares/not-found.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import urlRoutes from './modules/url/routes/url.routes.js'
+import analyticsRoute from './modules/analytics/routes/analytics.routes.js'
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use(requestLogger);
 app.use(express.json());
 app.use("/", healthRoute);
 app.use('/api/v1/urls',urlRoutes)
+app.use('/api/v1/analytics',analyticsRoute)
 app.use(notFound)
 app.use(errorHandler)
 
