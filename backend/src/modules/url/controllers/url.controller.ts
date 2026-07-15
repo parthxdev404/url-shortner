@@ -5,6 +5,7 @@ import { urlService } from '../services/url.service';
 import { asyncHandler } from '../../../middlewares/async-handler';
 import { analyticsService } from '../../analytics/services/analytics.service';
 import {UAParser} from 'ua-parser-js';
+import { Types } from 'mongoose';
 
 class UrlController {
   createShortUrl = asyncHandler(async (req: Request, res: Response) => {
@@ -30,7 +31,7 @@ redirect = asyncHandler(async (req: Request, res: Response) => {
   await urlService.incrementClicks(url.id);
 
   await analyticsService.recordClick({
-    urlId: url._id,
+    urlId: new Types.ObjectId(url.id),
     ipAddress: req.ip ?? "Unknown",
     userAgent: req.get("user-agent") ?? "Unknown",
     referrer: req.get("referer") ?? null,
