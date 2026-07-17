@@ -3,17 +3,13 @@ import { urlController } from '../controllers/url.controller';
 import { validate } from '../../../middlewares/validate';
 
 import { createShortUrlSchema, redirectSchema, urlIdSchema } from '../validation/url.validation';
-import { rateLimiter } from '../../../shared/rate-limit';
 
 const router = Router();
 
 // Create ShortUrl
 router.post(
   '/',
-  rateLimiter({
-    windowInSeconds: 600,
-    maxRequests: 5,
-  }),
+
   validate(createShortUrlSchema),
   urlController.createShortUrl,
 );
