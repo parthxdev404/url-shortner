@@ -1,5 +1,5 @@
 import { cleanEnv, port, str } from 'envalid';
-import "dotenv/config"
+import 'dotenv/config';
 
 export const env = cleanEnv(process.env, {
   NODE_ENV: str({
@@ -18,14 +18,9 @@ export const env = cleanEnv(process.env, {
   REDIS_URL: str(),
 
   JWT_ACCESS_SECRET: str(),
-
   JWT_REFRESH_SECRET: str(),
-
   JWT_ACCESS_EXPIRES: str(),
-
   JWT_REFRESH_EXPIRES: str(),
-
-  COOKIE_SECRET: str(),
 
   LOG_LEVEL: str({
     default: 'info',

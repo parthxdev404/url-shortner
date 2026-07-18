@@ -11,6 +11,7 @@ import { notFound } from './middlewares/not-found.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import urlRoutes from './modules/url/routes/url.routes.js';
 import analyticsRoute from './modules/analytics/routes/analytics.routes.js';
+import authRoutes from './modules/auth/routes/auth.routes.js';
 import { globalRateLimiter } from './middlewares/global-rate-limiter.js';
 
 const app = express();
@@ -32,6 +33,7 @@ app.use(globalRateLimiter);
 app.use('/', healthRoute);
 app.use('/api/v1/urls', urlRoutes);
 app.use('/api/v1/analytics', analyticsRoute);
+app.use('/api/v1/auth', authRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
