@@ -1,8 +1,10 @@
-import { AppError, ConflictError, NotFoundError } from '../../../shared/errors';
+import { ConflictError, UnauthorizedError } from '../../../shared/errors';
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
 
 import { userRepository } from '../../users/repository/user.repository';
 import { UserDocument } from '../../users/model/user.model';
+import { generateAccessToken, generateRefreshToken } from '../../../shared/utils/jwt';
+import { saveSession } from '../../../shared/utils/session';
 
 export class AuthService {
   async register(data: { name: string; email: string; password: string }): Promise<UserDocument> {
@@ -21,16 +23,36 @@ export class AuthService {
     });
   }
 
-  async login(data: { email: string; password: string }): Promise<UserDocument> {
-    const user = await userRepository.findByEmail(data.email);
+  async login(data: { email: string; password: string }) {
+    const user = await userRepository.findByEmailWithPassword(data.email);
 
-    if (!user) throw new NotFoundError('User Not Found');
+    if (!user) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
 
-    const isMatch = await comparePassword(data.password, user.passwordHash);
+    const isPasswordValid = await comparePassword(data.password, user.passwordHash);
 
-    if (!isMatch) throw new AppError('Invalid Credentials');
+    if (!isPasswordValid) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
 
-    return user;
+    await userRepository.updateLastLogin(user.id);
+
+    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user.id });
+    await saveSession(user.id, refreshToken);
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+      },
+      accessToken,
+      refreshToken,
+    };
   }
 }
 
