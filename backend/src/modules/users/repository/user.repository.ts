@@ -29,6 +29,10 @@ export class UserRepository {
       },
     );
   }
+
+  async findProfileById(id: string): Promise<UserDocument | null> {
+    return UserModel.findById(id).select('-passwordHash');
+  }
 }
 
 export const userRepository = new UserRepository();
