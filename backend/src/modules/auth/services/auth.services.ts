@@ -1,6 +1,5 @@
 import { ConflictError, UnauthorizedError } from '../../../shared/errors';
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
-
 import { userRepository } from '../../users/repository/user.repository';
 import { UserDocument } from '../../users/model/user.model';
 import { generateAccessToken, generateRefreshToken } from '../../../shared/utils/jwt';
@@ -8,22 +7,47 @@ import { deleteSession, saveSession } from '../../../shared/utils/session';
 import { getSession } from '../../../shared/utils/session';
 import { verifyRefreshToken } from '../../../shared/utils/jwt';
 import { toUserResponse } from '../../users/utils/user-response';
+import { env } from '../../../config/env';
+import { emailService } from '../../../shared/email/email.service';
+import { verifyEmailTemplate } from '../../../shared/email/templates/verify-email';
+import { generateToken, hashToken } from '../../../shared/utils/token';
+import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
 
 export class AuthService {
   async register(data: { name: string; email: string; password: string }): Promise<UserDocument> {
     const existingUser = await userRepository.findByEmail(data.email);
 
     if (existingUser) {
-      throw new ConflictError('Email Already Register');
+      throw new ConflictError('Email already registered.');
     }
 
     const passwordHash = await hashPassword(data.password);
 
-    return userRepository.create({
+    const user = await userRepository.create({
       name: data.name,
       email: data.email,
       passwordHash,
     });
+
+    const verificationToken = generateToken();
+
+    const hashedToken = hashToken(verificationToken);
+
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.EMAIL_VERIFICATION);
+
+    await userRepository.updateVerificationToken(user.id, hashedToken, expiresAt);
+
+    const verificationUrl = `${env.APP_URL}/verify-email?token=${verificationToken}`;
+
+    const html = verifyEmailTemplate(user.name, verificationUrl);
+
+    await emailService.send({
+      to: user.email,
+      subject: 'Verify your email',
+      html,
+    });
+
+    return user;
   }
 
   async login(data: { email: string; password: string }) {

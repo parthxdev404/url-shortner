@@ -1,4 +1,4 @@
-import { cleanEnv, port, str } from 'envalid';
+import { cleanEnv, email, port, str } from 'envalid';
 import 'dotenv/config';
 
 export const env = cleanEnv(process.env, {
@@ -21,6 +21,10 @@ export const env = cleanEnv(process.env, {
   JWT_REFRESH_SECRET: str(),
   JWT_ACCESS_EXPIRES: str(),
   JWT_REFRESH_EXPIRES: str(),
+
+  RESEND_API_KEY: str(),
+  EMAIL_FROM: email(),
+  APP_URL: str(),
 
   LOG_LEVEL: str({
     default: 'info',

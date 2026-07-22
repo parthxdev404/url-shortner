@@ -42,6 +42,15 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
+    verificationToken: {
+      type: String,
+      default: null,
+    },
+
+    verificationTokenExpiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -10,12 +10,17 @@ export class UserRepository {
   async findByEmail(email: string): Promise<UserDocument | null> {
     return UserModel.findOne({ email });
   }
+
   async findByEmailWithPassword(email: string): Promise<UserDocument | null> {
     return UserModel.findOne({ email }).select('+passwordHash');
   }
 
   async findById(id: string): Promise<UserDocument | null> {
     return UserModel.findById(id);
+  }
+
+  async findProfileById(id: string): Promise<UserDocument | null> {
+    return UserModel.findById(id).select('-passwordHash');
   }
 
   async updateLastLogin(id: string): Promise<UserDocument | null> {
@@ -30,8 +35,41 @@ export class UserRepository {
     );
   }
 
-  async findProfileById(id: string): Promise<UserDocument | null> {
-    return UserModel.findById(id).select('-passwordHash');
+  async updateVerificationToken(
+    id: string,
+    verificationToken: string,
+    verificationTokenExpiresAt: Date,
+  ): Promise<UserDocument | null> {
+    return UserModel.findByIdAndUpdate(
+      id,
+      {
+        verificationToken,
+        verificationTokenExpiresAt,
+      },
+      {
+        returnDocument: 'after',
+      },
+    );
+  }
+
+  async findByVerificationToken(verificationToken: string): Promise<UserDocument | null> {
+    return UserModel.findOne({
+      verificationToken,
+    });
+  }
+
+  async verifyUser(id: string): Promise<UserDocument | null> {
+    return UserModel.findByIdAndUpdate(
+      id,
+      {
+        isVerified: true,
+        verificationToken: null,
+        verificationTokenExpiresAt: null,
+      },
+      {
+        returnDocument: 'after',
+      },
+    );
   }
 }
 
