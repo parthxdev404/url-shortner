@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-
+import { env } from '../../../config/env';
 import { asyncHandler } from '../../../middlewares/async-handler';
 import { authService } from '../services/auth.services';
 import { toUserResponse } from '../../users/utils/user-response';
@@ -54,6 +54,13 @@ class AuthController {
       success: true,
       message: 'Logged Out Successfully',
     });
+  });
+
+  verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+    const token = req.query.token as string;
+    await authService.verifyEmail(token);
+
+    res.redirect(`${env.CLIENT_URL}/login?verified=true`);
   });
 }
 

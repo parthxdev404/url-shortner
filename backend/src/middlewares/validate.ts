@@ -12,9 +12,18 @@ export function validate(schema: AnyZodObject) {
         query: req.query,
       });
 
-      if (parsed.body) req.body = parsed.body;
-      if (parsed.params) req.params = parsed.params;
-      if (parsed.query) req.query = parsed.query;
+      if (parsed.body) {
+        req.body = parsed.body;
+      }
+
+      if (parsed.params) {
+        req.params = parsed.params;
+      }
+
+      // Don't overwrite req.query
+      if (parsed.query) {
+        Object.assign(req.query, parsed.query);
+      }
 
       next();
     } catch (error) {

@@ -31,7 +31,11 @@ export class AuthService {
 
     const verificationToken = generateToken();
 
+    console.log('RAW TOKEN:', verificationToken);
+
     const hashedToken = hashToken(verificationToken);
+
+    console.log('HASH STORED:', hashedToken);
 
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.EMAIL_VERIFICATION);
 
@@ -134,6 +138,26 @@ export class AuthService {
 
   async logOut(userId: string): Promise<void> {
     await deleteSession(userId);
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    const hashedToken = hashToken(token);
+
+    const user = await userRepository.findByVerificationToken(hashedToken);
+
+    if (!user) {
+      throw new UnauthorizedError('Invalid Verification Link');
+    }
+
+    if (user.isVerified) {
+      throw new UnauthorizedError('Email ALready Verified');
+    }
+
+    if (!user.verificationTokenExpiresAt || user.verificationTokenExpiresAt < new Date()) {
+      throw new UnauthorizedError('Verification link has expired.');
+    }
+
+    await userRepository.verifyUser(user.id);
   }
 }
 
