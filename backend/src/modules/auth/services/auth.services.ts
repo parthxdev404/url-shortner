@@ -8,8 +8,7 @@ import { getSession } from '../../../shared/utils/session';
 import { verifyRefreshToken } from '../../../shared/utils/jwt';
 import { toUserResponse } from '../../users/utils/user-response';
 import { env } from '../../../config/env';
-import { emailService } from '../../../shared/email/email.service';
-import { verifyEmailTemplate } from '../../../shared/email/templates/verify-email';
+import { enqueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
 import { generateToken, hashToken } from '../../../shared/utils/token';
 import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
 
@@ -34,21 +33,15 @@ export class AuthService {
     console.log('RAW TOKEN:', verificationToken);
 
     const hashedToken = hashToken(verificationToken);
-
-    console.log('HASH STORED:', hashedToken);
-
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.EMAIL_VERIFICATION);
 
     await userRepository.updateVerificationToken(user.id, hashedToken, expiresAt);
-
     const verificationUrl = `${env.APP_URL}/verify-email?token=${verificationToken}`;
 
-    const html = verifyEmailTemplate(user.name, verificationUrl);
-
-    await emailService.send({
+    await enqueVerificationEmail({
       to: user.email,
-      subject: 'Verify your email',
-      html,
+      name: user.name,
+      verificationUrl,
     });
 
     return user;
