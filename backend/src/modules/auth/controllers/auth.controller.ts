@@ -62,6 +62,26 @@ class AuthController {
 
     res.redirect(`${env.CLIENT_URL}/login?verified=true`);
   });
+
+  forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    await authService.forgotPassword(req.body.email);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'If an account with that email exists , a password reset link has been sent',
+    });
+  });
+
+  resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, password } = req.body;
+
+    await authService.resetPassword(token, password);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Password reset successfully.',
+    });
+  });
 }
 
 export const authController = new AuthController();

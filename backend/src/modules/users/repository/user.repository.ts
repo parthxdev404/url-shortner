@@ -71,6 +71,40 @@ export class UserRepository {
       },
     );
   }
+
+  async updatePasswordResetToken(
+    id: string,
+    passwordResetToken: string,
+    passwordResetTokenExpiresAt: Date,
+  ): Promise<UserDocument | null> {
+    return UserModel.findByIdAndUpdate(
+      id,
+      {
+        passwordResetToken,
+        passwordResetTokenExpiresAt,
+      },
+      { returnDocument: 'after' },
+    );
+  }
+
+  async findByPasswordResetToken(passwordResetToken: string): Promise<UserDocument | null> {
+    return UserModel.findOne({ passwordResetToken });
+  }
+
+  async updatePassword(id: string, passwordHash: string): Promise<UserDocument | null> {
+    return UserModel.findByIdAndUpdate(id, { passwordHash }, { returnDocument: 'after' });
+  }
+
+  async clearPasswordResetToken(id: string): Promise<UserDocument | null> {
+    return UserModel.findByIdAndUpdate(
+      id,
+      {
+        passwordResetToken: null,
+        passwordResetTokenExpiresAt: null,
+      },
+      { returnDocument: 'after' },
+    );
+  }
 }
 
 export const userRepository = new UserRepository();

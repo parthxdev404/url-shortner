@@ -11,6 +11,7 @@ import { env } from '../../../config/env';
 import { enqueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
 import { generateToken, hashToken } from '../../../shared/utils/token';
 import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
+import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
 
 export class AuthService {
   async register(data: { name: string; email: string; password: string }): Promise<UserDocument> {
@@ -151,6 +152,59 @@ export class AuthService {
     }
 
     await userRepository.verifyUser(user.id);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await userRepository.findByEmail(email);
+
+    // Don't reveal whether the email exists
+    if (!user) {
+      return;
+    }
+
+    const resetToken = generateToken();
+    const hashedToken = hashToken(resetToken);
+
+    console.log('RAW RESET TOKEN:', resetToken);
+    console.log('HASHED RESET TOKEN:', hashedToken);
+
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.PASSWORD_RESET);
+
+    await userRepository.updatePasswordResetToken(user.id, hashedToken, expiresAt);
+
+    const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+    await enqueResetPasswordEmail({
+      to: user.email,
+      name: user.name,
+      resetUrl,
+    });
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    console.log('TOKEN RECEIVED:', token);
+
+    const hashedToken = hashToken(token);
+
+    console.log('HASHED RECEIVED TOKEN:', hashedToken);
+
+    const user = await userRepository.findByPasswordResetToken(hashedToken);
+
+    if (!user) {
+      throw new UnauthorizedError('Invalid password reset link.');
+    }
+
+    if (!user.passwordResetTokenExpiresAt || user.passwordResetTokenExpiresAt < new Date()) {
+      throw new UnauthorizedError('Password reset link has expired.');
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await userRepository.updatePassword(user.id, passwordHash);
+
+    await userRepository.clearPasswordResetToken(user.id);
+
+    await deleteSession(user.id);
   }
 }
 
