@@ -165,9 +165,6 @@ export class AuthService {
     const resetToken = generateToken();
     const hashedToken = hashToken(resetToken);
 
-    console.log('RAW RESET TOKEN:', resetToken);
-    console.log('HASHED RESET TOKEN:', hashedToken);
-
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.PASSWORD_RESET);
 
     await userRepository.updatePasswordResetToken(user.id, hashedToken, expiresAt);
@@ -182,11 +179,7 @@ export class AuthService {
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
-    console.log('TOKEN RECEIVED:', token);
-
     const hashedToken = hashToken(token);
-
-    console.log('HASHED RECEIVED TOKEN:', hashedToken);
 
     const user = await userRepository.findByPasswordResetToken(hashedToken);
 
