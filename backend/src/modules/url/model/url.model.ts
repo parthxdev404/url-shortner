@@ -1,9 +1,4 @@
-import {
-  InferSchemaType,
-  HydratedDocument,
-  Schema,
-  model,
-} from "mongoose";
+import { InferSchemaType, HydratedDocument, Schema, model } from 'mongoose';
 
 const urlSchema = new Schema(
   {
@@ -17,6 +12,12 @@ const urlSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
     },
 
     clicks: {
@@ -38,15 +39,12 @@ const urlSchema = new Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 urlSchema.index({ shortCode: 1 }, { unique: true });
 
-urlSchema.index(
-  { expiresAt: 1 },
-  { expireAfterSeconds: 0 }
-);
+urlSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type UrlSchema = InferSchemaType<typeof urlSchema>;
 

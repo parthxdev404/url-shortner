@@ -4,14 +4,15 @@ import { StatusCodes } from 'http-status-codes';
 import { urlService } from '../services/url.service';
 import { asyncHandler } from '../../../middlewares/async-handler';
 import { analyticsService } from '../../analytics/services/analytics.service';
-import {UAParser} from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import { Types } from 'mongoose';
+import { getMyUrlsSchema } from '../validation/get-my-url-schema';
 
 class UrlController {
   createShortUrl = asyncHandler(async (req: Request, res: Response) => {
     const { originalUrl, customAlias } = req.body;
 
-    const url = await urlService.createShortUrl(originalUrl, customAlias);
+    const url = await urlService.createShortUrl(req.user!.id, originalUrl, customAlias);
 
     res.status(StatusCodes.CREATED).json({
       success: true,
@@ -20,30 +21,30 @@ class UrlController {
     });
   });
 
-redirect = asyncHandler(async (req: Request, res: Response) => {
-  const shortCode = req.params.shortCode as string;
+  redirect = asyncHandler(async (req: Request, res: Response) => {
+    const shortCode = req.params.shortCode as string;
 
-  const url = await urlService.resolveRedirect(shortCode);
+    const url = await urlService.resolveRedirect(shortCode);
 
-  const parser = new UAParser(req.get("user-agent") ?? "");
-  const ua = parser.getResult();
+    const parser = new UAParser(req.get('user-agent') ?? '');
+    const ua = parser.getResult();
 
-  await urlService.incrementClicks(url.id);
+    await urlService.incrementClicks(url.id);
 
-  await analyticsService.recordClick({
-    urlId: new Types.ObjectId(url.id),
-    ipAddress: req.ip ?? "Unknown",
-    userAgent: req.get("user-agent") ?? "Unknown",
-    referrer: req.get("referer") ?? null,
-    browser: ua.browser.name ?? "Unknown",
-    os: ua.os.name ?? "Unknown",
-    device: ua.device.type ?? "Desktop",
-    country: "Unknown",
-    city: "Unknown",
+    await analyticsService.recordClick({
+      urlId: new Types.ObjectId(url.id),
+      ipAddress: req.ip ?? 'Unknown',
+      userAgent: req.get('user-agent') ?? 'Unknown',
+      referrer: req.get('referer') ?? null,
+      browser: ua.browser.name ?? 'Unknown',
+      os: ua.os.name ?? 'Unknown',
+      device: ua.device.type ?? 'Desktop',
+      country: 'Unknown',
+      city: 'Unknown',
+    });
+
+    res.redirect(url.originalUrl);
   });
-
-  res.redirect(url.originalUrl);
-});
 
   getById = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
@@ -61,6 +62,32 @@ redirect = asyncHandler(async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
       success: true,
       data: url,
+    });
+  });
+
+  getMyUrls = asyncHandler(async (req: Request, res: Response) => {
+    const { query } = getMyUrlsSchema.parse({
+      query: req.query,
+    });
+
+    const result = await urlService.getMyUrls(req.user!.id, query);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    });
+  });
+
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
+    const updatedUrl = await urlService.updateUrl(id, userId, req.body);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Url Updated Successfully',
+      data: updatedUrl,
     });
   });
 
