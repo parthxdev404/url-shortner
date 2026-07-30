@@ -19,6 +19,15 @@ const urlSchema = new Schema(
       required: true,
       index: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
 
     clicks: {
       type: Number,

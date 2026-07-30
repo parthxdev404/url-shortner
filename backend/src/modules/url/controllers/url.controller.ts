@@ -104,12 +104,84 @@ class UrlController {
 
   delete = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
+    const userId = req.user!.id;
 
-    await urlService.deleteUrl(id);
+    await urlService.deleteUrl(id, userId);
 
     res.status(StatusCodes.OK).json({
       success: true,
       message: 'Url Deleted Successfully',
+    });
+  });
+
+  restore = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
+    const url = await urlService.restoreUrl(id, userId);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URL restored successfully.',
+      data: url,
+    });
+  });
+
+  permanentDelete = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
+    await urlService.permanentDeleteUrl(id, userId);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URL permanently deleted.',
+    });
+  });
+
+  getTrash = asyncHandler(async (req: Request, res: Response) => {
+    const { query } = getMyUrlsSchema.parse({
+      query: req.query,
+    });
+
+    const result = await urlService.getTrash(req.user!.id, query);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    });
+  });
+
+  bulkDelete = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body;
+
+    await urlService.bulkDelete(req.user!.id, ids);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URLs deleted successfully.',
+    });
+  });
+
+  bulkRestore = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body;
+
+    await urlService.bulkRestore(req.user!.id, ids);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URLs restored successfully.',
+    });
+  });
+
+  bulkDeactivate = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body;
+
+    await urlService.bulkDeactivate(req.user!.id, ids);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URLs deactivated successfully.',
     });
   });
 }

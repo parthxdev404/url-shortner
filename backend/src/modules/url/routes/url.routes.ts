@@ -3,25 +3,18 @@ import { urlController } from '../controllers/url.controller';
 import { validate } from '../../../middlewares/validate';
 import { authenticate } from '../../../middlewares/authenticate.middleware';
 import { updateUrlParamsSchema, updateUrlBodySchema } from '../validation/update-urls.schema';
-
+import { bulkUrlSchema } from '../validation/bulk-url.schema';
 import { createShortUrlSchema, redirectSchema, urlIdSchema } from '../validation/url.validation';
 import { getMyUrlsSchema } from '../validation/get-my-url-schema';
 
 const router = Router();
 
-// Create ShortUrl
 router.post('/', authenticate, validate(createShortUrlSchema), urlController.createShortUrl);
 
-// Redirect
 router.get('/:shortCode', validate(redirectSchema), urlController.redirect);
-
-// Get Url BY Id
 router.get('/id/:id', validate(urlIdSchema), urlController.getById);
-
-// Get My Urls
 router.get('/', authenticate, validate(getMyUrlsSchema), urlController.getMyUrls);
-
-// Update Url
+router.get('/trash', validate(getMyUrlsSchema), urlController.getTrash);
 router.patch(
   '/id/:id',
   authenticate,
@@ -30,10 +23,12 @@ router.patch(
   urlController.update,
 );
 
-// Deactivate Url
+router.patch('/id/:id/restore', validate(urlIdSchema), urlController.restore);
+router.patch('/bulk/restore', validate(bulkUrlSchema), urlController.bulkRestore);
 router.patch('/id/:id/deactivate', validate(urlIdSchema), urlController.deactivate);
-
-// Delete Url
+router.patch('/bulk/deactivate', validate(bulkUrlSchema), urlController.bulkDeactivate);
 router.delete('/id/:id', validate(urlIdSchema), urlController.delete);
+router.delete('/id/:id/permanent', validate(urlIdSchema), urlController.permanentDelete);
+router.delete('/buld', validate(bulkUrlSchema), urlController.bulkDelete);
 
 export default router;

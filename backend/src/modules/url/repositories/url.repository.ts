@@ -20,20 +20,23 @@ export class UrlRepository {
   }
 
   async findByShortCode(shortCode: string): Promise<UrlDocument | null> {
-    return UrlModel.findOne({ shortCode });
+    return UrlModel.findOne({ shortCode, isDeleted: false });
   }
 
   async existsByShortCode(shortCode: string): Promise<{ _id: unknown } | null> {
-    return UrlModel.exists({ shortCode });
+    return UrlModel.exists({ shortCode, isDeleted: false });
   }
 
   async findById(id: string): Promise<UrlDocument | null> {
-    return UrlModel.findById(id);
+    return UrlModel.findOne({ _id: id, isDeleted: false });
   }
 
   async incrementClicks(id: string): Promise<UrlDocument | null> {
-    return UrlModel.findByIdAndUpdate(
-      id,
+    return UrlModel.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: false,
+      },
       {
         $inc: {
           clicks: 1,
@@ -153,8 +156,11 @@ export class UrlRepository {
   }
 
   async deactivateById(id: string): Promise<UrlDocument | null> {
-    return UrlModel.findByIdAndUpdate(
-      id,
+    return UrlModel.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: false,
+      },
       {
         isActive: false,
       },
@@ -164,8 +170,173 @@ export class UrlRepository {
     );
   }
 
-  async deleteById(id: string): Promise<UrlDocument | null> {
-    return UrlModel.findByIdAndDelete(id);
+  async softDeleteById(id: string, userId: string): Promise<UrlDocument | null> {
+    return UrlModel.findOneAndUpdate(
+      {
+        _id: id,
+        userId,
+        isDeleted: false,
+      },
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  async restoreById(id: string, userId: string): Promise<UrlDocument | null> {
+    return UrlModel.findOneAndUpdate(
+      {
+        _id: id,
+        userId,
+        isDeleted: true,
+      },
+      {
+        isDeleted: false,
+        deletedAt: null,
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  async permanentDeleteById(id: string, userId: string): Promise<UrlDocument | null> {
+    return UrlModel.findOneAndDelete({
+      _id: id,
+      userId,
+      isDeleted: true,
+    });
+  }
+
+  async findDeletedByUser(options: GetUserUrlsOption): Promise<{
+    urls: UrlDocument[];
+    total: number;
+  }> {
+    const { userId, page, limit, search, sortBy, order } = options;
+
+    const conditions: Record<string, unknown>[] = [
+      {
+        userId,
+        isDeleted: true,
+      },
+    ];
+
+    if (search) {
+      conditions.push({
+        $or: [
+          {
+            originalUrl: {
+              $regex: search,
+              $options: 'i',
+            },
+          },
+          {
+            shortCode: {
+              $regex: search,
+              $options: 'i',
+            },
+          },
+        ],
+      });
+    }
+
+    const filter =
+      conditions.length === 1
+        ? conditions[0]
+        : {
+            $and: conditions,
+          };
+
+    const skip = (page - 1) * limit;
+
+    const sort: Record<string, SortOrder> = {
+      [sortBy]: order === 'asc' ? 1 : -1,
+      _id: 1,
+    };
+
+    const [urls, total] = await Promise.all([
+      UrlModel.find(filter).sort(sort).skip(skip).limit(limit),
+
+      UrlModel.countDocuments(filter),
+    ]);
+
+    return {
+      urls,
+      total,
+    };
+  }
+
+  async bulkSoftDelete(userId: string, ids: string[]): Promise<number> {
+    const result = await UrlModel.updateMany(
+      {
+        _id: { $in: ids },
+        userId,
+        isDeleted: false,
+      },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
+      },
+    );
+
+    return result.modifiedCount;
+  }
+
+  async findManyByIds(userId: string, ids: string[]): Promise<UrlDocument[]> {
+    return UrlModel.find({
+      _id: { $in: ids },
+      userId,
+      isDeleted: false,
+    });
+  }
+
+  async bulkRestore(userId: string, ids: string[]): Promise<number> {
+    const result = await UrlModel.updateMany(
+      {
+        _id: { $in: ids },
+        userId,
+        isDeleted: true,
+      },
+      {
+        $set: {
+          isDeleted: false,
+          deletedAt: null,
+        },
+      },
+    );
+
+    return result.modifiedCount;
+  }
+
+  async findManyDeletedByIds(userId: string, ids: string[]): Promise<UrlDocument[]> {
+    return UrlModel.find({
+      _id: { $in: ids },
+      userId,
+      isDeleted: true,
+    });
+  }
+
+  async bulkDeactivate(userId: string, ids: string[]): Promise<number> {
+    const result = await UrlModel.updateMany(
+      {
+        _id: { $in: ids },
+        userId,
+        isDeleted: false,
+      },
+      {
+        $set: {
+          isActive: false,
+        },
+      },
+    );
+
+    return result.modifiedCount;
   }
 }
 

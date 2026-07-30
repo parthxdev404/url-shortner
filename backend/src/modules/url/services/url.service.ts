@@ -123,16 +123,14 @@ export class UrlService {
     await cacheService.delete(CACHE_KEYS.url(url.shortCode));
   }
 
-  async deleteUrl(id: string): Promise<void> {
-    const url = await urlRepository.findById(id);
+  async deleteUrl(id: string, userId: string): Promise<void> {
+    const deletedUrl = await urlRepository.softDeleteById(id, userId);
 
-    if (!url) {
+    if (!deletedUrl) {
       throw new NotFoundError('URL not found.');
     }
 
-    await urlRepository.deleteById(id);
-
-    await cacheService.delete(CACHE_KEYS.url(url.shortCode));
+    await cacheService.delete(CACHE_KEYS.url(deletedUrl.shortCode));
   }
   async getMyUrls(userId: string, query: GetMyUrlsQuery): Promise<GetMyUrlsResponse> {
     const result = await urlRepository.findByUser({
@@ -169,6 +167,77 @@ export class UrlService {
 
     await cacheService.delete(CACHE_KEYS.url(updatedUrl.shortCode));
     return updatedUrl;
+  }
+
+  async restoreUrl(id: string, userId: string): Promise<UrlDocument> {
+    const restoredUrl = await urlRepository.restoreById(id, userId);
+
+    if (!restoredUrl) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return restoredUrl;
+  }
+
+  async permanentDeleteUrl(id: string, userId: string): Promise<void> {
+    const deletedUrl = await urlRepository.permanentDeleteById(id, userId);
+
+    if (!deletedUrl) {
+      throw new NotFoundError('URL not found or has not been moved to trash.');
+    }
+
+    await cacheService.delete(CACHE_KEYS.url(deletedUrl.shortCode));
+  }
+
+  async getTrash(userId: string, query: GetMyUrlsQuery): Promise<GetMyUrlsResponse> {
+    const result = await urlRepository.findDeletedByUser({
+      userId,
+      ...query,
+    });
+
+    return {
+      items: result.urls,
+      page: query.page,
+      limit: query.limit,
+      total: result.total,
+      totalPages: Math.ceil(result.total / query.limit),
+      sortBy: query.sortBy,
+      order: query.order,
+    };
+  }
+
+  async bulkDelete(userId: string, ids: string[]): Promise<void> {
+    const urls = await urlRepository.findManyByIds(userId, ids);
+
+    if (urls.length === 0) {
+      throw new NotFoundError('No URLs found.');
+    }
+
+    await urlRepository.bulkSoftDelete(userId, ids);
+
+    await Promise.all(urls.map((url) => cacheService.delete(CACHE_KEYS.url(url.shortCode))));
+  }
+
+  async bulkRestore(userId: string, ids: string[]): Promise<void> {
+    const urls = await urlRepository.findManyDeletedByIds(userId, ids);
+
+    if (urls.length === 0) {
+      throw new NotFoundError('No URLs found.');
+    }
+
+    await urlRepository.bulkRestore(userId, ids);
+  }
+
+  async bulkDeactivate(userId: string, ids: string[]): Promise<void> {
+    const urls = await urlRepository.findManyByIds(userId, ids);
+
+    if (urls.length === 0) {
+      throw new NotFoundError('No URLs found.');
+    }
+
+    await urlRepository.bulkDeactivate(userId, ids);
+
+    await Promise.all(urls.map((url) => cacheService.delete(CACHE_KEYS.url(url.shortCode))));
   }
 }
 export const urlService = new UrlService();
