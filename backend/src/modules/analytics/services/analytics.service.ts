@@ -1,10 +1,15 @@
 import { Types } from 'mongoose';
-
-import { analyticsRepository } from '../repository/analytics.repository';
+import { urlRepository } from '../../url/repositories/url.repository';
+import {
+  analyticsRepository,
+  UrlAnalyticsOverview,
+  TimelinePoint,
+} from '../repository/analytics.repository';
 import { AnalyticsDocument } from '../model/analytics.model';
 import { CACHE_KEYS } from '../../../shared/cache/cache.key';
 import { cacheService } from '../../../shared/cache/cache.service';
 import { CACHE_TTL } from '../../../shared/cache/cache.ttl';
+import { NotFoundError } from '../../../shared/errors';
 
 export class AnalyticsService {
   async recordClick(data: {
@@ -30,9 +35,7 @@ export class AnalyticsService {
       city: data.city,
     });
 
-    await cacheService.delete(
-      CACHE_KEYS.analytics(data.urlId.toString()),
-    );
+    await cacheService.delete(CACHE_KEYS.analytics(data.urlId.toString()));
 
     return analytics;
   }
@@ -59,13 +62,78 @@ export class AnalyticsService {
       recentClicks,
     };
 
-    await cacheService.set(
-      cacheKey,
-      analytics,
-      CACHE_TTL.ANALYTICS,
-    );
+    await cacheService.set(cacheKey, analytics, CACHE_TTL.ANALYTICS);
 
     return analytics;
+  }
+
+  async getOverview(urlId: string): Promise<UrlAnalyticsOverview> {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getOverview(urlId);
+  }
+  async getTimeline(urlId: string): Promise<TimelinePoint[]> {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getTimeline(new Types.ObjectId(urlId));
+  }
+
+  async getBrowserStats(urlId: string) {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getDistribution(new Types.ObjectId(urlId), 'browser');
+  }
+
+  async getOSStats(urlId: string) {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getDistribution(new Types.ObjectId(urlId), 'os');
+  }
+
+  async getDeviceStats(urlId: string) {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getDistribution(new Types.ObjectId(urlId), 'device');
+  }
+
+  async getReferrerStats(urlId: string) {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getDistribution(new Types.ObjectId(urlId), 'referrer');
+  }
+
+  async getCountryStats(urlId: string) {
+    const url = await urlRepository.findById(urlId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    return analyticsRepository.getDistribution(new Types.ObjectId(urlId), 'country');
   }
 }
 

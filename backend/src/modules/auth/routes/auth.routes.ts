@@ -29,6 +29,6 @@ router.get('/admin', authenticate, authorize(UserRole.ADMIN), (_req, res) => {
     message: 'Welcome Admin',
   });
 });
-router.delete('/logout', authenticate, authController.logOut);
+router.post('/logout', authenticate, authController.logOut);
 
 export default router;
