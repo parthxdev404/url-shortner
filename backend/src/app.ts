@@ -15,6 +15,8 @@ import authRoutes from './modules/auth/routes/auth.routes.js';
 import { globalRateLimiter } from './middlewares/global-rate-limiter.js';
 import dashboardRoutes from './modules/dashboard/routes/dashboard.routes.js';
 import { authenticate } from './middlewares/authenticate.middleware.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
 
 const app = express();
 
@@ -31,12 +33,19 @@ app.use(compression());
 app.use(cookieParser());
 app.use(requestId);
 app.use(requestLogger);
-app.use(globalRateLimiter);
+app.use(requestLogger);
+
+if (process.env.NODE_ENV !== 'test') {
+  app.use(globalRateLimiter);
+}
+
+app.use('/', healthRoute);
 app.use('/', healthRoute);
 app.use('/api/v1/urls', urlRoutes);
 app.use('/api/v1/analytics', analyticsRoute);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/dashboard', authenticate, dashboardRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(notFound);
 app.use(errorHandler);
 

@@ -6,6 +6,11 @@ import { CACHE_KEYS } from '../cache/cache.key';
 
 export function rateLimiter(options: RateLimitOptions) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Skip rate limiting during tests
+    if (process.env.NODE_ENV === 'test') {
+      return next();
+    }
+
     try {
       const ip = req.ip ?? 'unknown';
       const key = CACHE_KEYS.rateLimit(options.keyPrefix ?? 'global', ip);

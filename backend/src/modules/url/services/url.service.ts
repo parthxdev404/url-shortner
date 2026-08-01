@@ -169,43 +169,6 @@ export class UrlService {
     return updatedUrl;
   }
 
-  async restoreUrl(id: string, userId: string): Promise<UrlDocument> {
-    const restoredUrl = await urlRepository.restoreById(id, userId);
-
-    if (!restoredUrl) {
-      throw new NotFoundError('URL not found.');
-    }
-
-    return restoredUrl;
-  }
-
-  async permanentDeleteUrl(id: string, userId: string): Promise<void> {
-    const deletedUrl = await urlRepository.permanentDeleteById(id, userId);
-
-    if (!deletedUrl) {
-      throw new NotFoundError('URL not found or has not been moved to trash.');
-    }
-
-    await cacheService.delete(CACHE_KEYS.url(deletedUrl.shortCode));
-  }
-
-  async getTrash(userId: string, query: GetMyUrlsQuery): Promise<GetMyUrlsResponse> {
-    const result = await urlRepository.findDeletedByUser({
-      userId,
-      ...query,
-    });
-
-    return {
-      items: result.urls,
-      page: query.page,
-      limit: query.limit,
-      total: result.total,
-      totalPages: Math.ceil(result.total / query.limit),
-      sortBy: query.sortBy,
-      order: query.order,
-    };
-  }
-
   async bulkDelete(userId: string, ids: string[]): Promise<void> {
     const urls = await urlRepository.findManyByIds(userId, ids);
 

@@ -60,28 +60,28 @@ class AnalyticsController {
   getOSStats = asyncHandler(async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
       success: true,
-      data: await analyticsService.getBrowserStats(req.params.urlId as string),
+      data: await analyticsService.getOSStats(req.params.urlId as string),
     });
   });
 
   getDeviceStats = asyncHandler(async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
       success: true,
-      data: await analyticsService.getBrowserStats(req.params.urlId as string),
+      data: await analyticsService.getDeviceStats(req.params.urlId as string),
     });
   });
 
   getReferrerStats = asyncHandler(async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
       success: true,
-      data: await analyticsService.getBrowserStats(req.params.urlId as string),
+      data: await analyticsService.getReferrerStats(req.params.urlId as string),
     });
   });
 
   getCountryStats = asyncHandler(async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
       success: true,
-      data: await analyticsService.getBrowserStats(req.params.urlId as string),
+      data: await analyticsService.getCountryStats(req.params.urlId as string),
     });
   });
 }
