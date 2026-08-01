@@ -30,6 +30,7 @@ router.patch(
   validate(bulkUrlSchema),
   urlController.bulkDeactivate,
 );
+router.delete('/id/:id', authenticate, validate(urlIdSchema), urlController.delete);
 
 router.delete('/bulk', authenticate, validate(bulkUrlSchema), urlController.bulkDelete);
 

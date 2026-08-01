@@ -2,12 +2,14 @@ import request from 'supertest';
 import { describe, it, expect } from 'vitest';
 
 import app from '../helpers/app';
-import { vi } from 'vitest';
 import { UserModel } from '../../modules/users/model/user.model';
 
-vi.mock('../../src/shared/queue/jobs/email.jobs', () => ({
+import { vi } from 'vitest';
+
+vi.mock('../../shared/queue/jobs/send-verification-email.jobs', () => ({
   enqueVerificationEmail: vi.fn().mockResolvedValue(undefined),
 }));
+
 import { enqueVerificationEmail } from '../../shared/queue/jobs/send-verification-email.jobs';
 
 describe('POST /api/v1/auth/register', () => {

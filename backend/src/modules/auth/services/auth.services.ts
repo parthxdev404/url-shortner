@@ -14,7 +14,7 @@ import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
 import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
 
 export class AuthService {
-  async register(data: { name: string; email: string; password: string }): Promise<UserDocument> {
+  async register(data: { name: string; email: string; password: string }) {
     const existingUser = await userRepository.findByEmail(data.email);
 
     if (existingUser) {
@@ -45,7 +45,7 @@ export class AuthService {
       verificationUrl,
     });
 
-    return user;
+    return toUserResponse(user);
   }
 
   async login(data: { email: string; password: string }) {

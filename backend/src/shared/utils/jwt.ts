@@ -1,5 +1,5 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
-
+import crypto from 'crypto';
 import { JWT_CONFIG } from '../../config/jwt';
 import { UserRole } from '../../modules/users/model/user.model';
 
@@ -11,12 +11,14 @@ export interface TokenPayload extends JwtPayload {
 export function generateAccessToken(payload: Pick<TokenPayload, 'userId' | 'role'>): string {
   return jwt.sign(payload, JWT_CONFIG.access.secret, {
     expiresIn: JWT_CONFIG.access.expiresIn,
+    jwtid: crypto.randomUUID(),
   });
 }
 
 export function generateRefreshToken(payload: Pick<TokenPayload, 'userId'>): string {
   return jwt.sign(payload, JWT_CONFIG.refresh.secret, {
     expiresIn: JWT_CONFIG.refresh.expiresIn,
+    jwtid: crypto.randomUUID(),
   });
 }
 

@@ -6,13 +6,16 @@ import { redis } from '../infastructure/redis/redis';
 
 beforeAll(async () => {
   await connectTestDB();
+
+  await redis.connect();
   await redis.flushdb();
 });
 
 beforeEach(async () => {
   await clearDatabase();
 });
-
 afterAll(async () => {
+  await redis.quit();
+
   await disconnectTestDB();
 });
