@@ -1,29 +1,41 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import app from '../helpers/app';
 import { registerUser } from '../helpers/user';
-import { enqueResetPasswordEmail } from '../mocks/email-jobs';
+import { emailQueue } from '../../shared/queue/queues/email.queue';
+
+async function generateResetToken(email: string): Promise<string> {
+  const addSpy = vi.spyOn(emailQueue, 'add').mockResolvedValue({} as never);
+
+  const response = await request(app).post('/api/v1/auth/forgot-password').send({
+    email,
+  });
+
+  expect(response.status).toBe(200);
+
+  expect(addSpy).toHaveBeenCalledTimes(1);
+
+  const [, payload] = addSpy.mock.calls[0]!;
+
+  const token = new URL(payload.resetUrl).searchParams.get('token');
+
+  expect(token).toBeTruthy();
+
+  addSpy.mockRestore();
+
+  return token!;
+}
 
 describe('POST /api/v1/auth/reset-password', () => {
   beforeEach(() => {
-    enqueResetPasswordEmail.mockClear();
+    vi.restoreAllMocks();
   });
 
   it('should reset password successfully', async () => {
     const { payload } = await registerUser();
 
-    await request(app).post('/api/v1/auth/forgot-password').send({
-      email: payload.email,
-    });
-
-    expect(enqueResetPasswordEmail).toHaveBeenCalledTimes(1);
-
-    const resetUrl = enqueResetPasswordEmail.mock.calls[0]![0].resetUrl;
-
-    const token = new URL(resetUrl).searchParams.get('token');
-
-    expect(token).toBeTruthy();
+    const token = await generateResetToken(payload.email);
 
     const resetResponse = await request(app).post('/api/v1/auth/reset-password').send({
       token,
@@ -31,12 +43,9 @@ describe('POST /api/v1/auth/reset-password', () => {
     });
 
     expect(resetResponse.status).toBe(200);
-
     expect(resetResponse.body.success).toBe(true);
-
     expect(resetResponse.body.message).toBe('Password reset successfully.');
 
-    // Old password should fail
     const oldLogin = await request(app).post('/api/v1/auth/login').send({
       email: payload.email,
       password: payload.password,
@@ -50,7 +59,6 @@ describe('POST /api/v1/auth/reset-password', () => {
     });
 
     expect(newLogin.status).toBe(200);
-
     expect(newLogin.body.success).toBe(true);
   });
 
@@ -61,7 +69,6 @@ describe('POST /api/v1/auth/reset-password', () => {
     });
 
     expect(response.status).toBe(401);
-
     expect(response.body.success).toBe(false);
   });
 
@@ -84,13 +91,7 @@ describe('POST /api/v1/auth/reset-password', () => {
   it('should reject weak password', async () => {
     const { payload } = await registerUser();
 
-    await request(app).post('/api/v1/auth/forgot-password').send({
-      email: payload.email,
-    });
-
-    const resetUrl = enqueResetPasswordEmail.mock.calls[0]![0].resetUrl;
-
-    const token = new URL(resetUrl).searchParams.get('token');
+    const token = await generateResetToken(payload.email);
 
     const response = await request(app).post('/api/v1/auth/reset-password').send({
       token,
@@ -103,13 +104,7 @@ describe('POST /api/v1/auth/reset-password', () => {
   it('should not allow reusing the same reset token', async () => {
     const { payload } = await registerUser();
 
-    await request(app).post('/api/v1/auth/forgot-password').send({
-      email: payload.email,
-    });
-
-    const resetUrl = enqueResetPasswordEmail.mock.calls[0]![0].resetUrl;
-
-    const token = new URL(resetUrl).searchParams.get('token');
+    const token = await generateResetToken(payload.email);
 
     const first = await request(app).post('/api/v1/auth/reset-password').send({
       token,
@@ -124,7 +119,6 @@ describe('POST /api/v1/auth/reset-password', () => {
     });
 
     expect(second.status).toBe(401);
-
     expect(second.body.success).toBe(false);
   });
 
@@ -138,13 +132,7 @@ describe('POST /api/v1/auth/reset-password', () => {
 
     const oldRefreshToken = login.body.data.refreshToken;
 
-    await request(app).post('/api/v1/auth/forgot-password').send({
-      email: payload.email,
-    });
-
-    const resetUrl = enqueResetPasswordEmail.mock.calls[0]![0].resetUrl;
-
-    const token = new URL(resetUrl).searchParams.get('token');
+    const token = await generateResetToken(payload.email);
 
     await request(app).post('/api/v1/auth/reset-password').send({
       token,

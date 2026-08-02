@@ -1,3 +1,5 @@
+import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
+import { enqueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
 import { ConflictError, UnauthorizedError } from '../../../shared/errors';
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
 import { userRepository } from '../../users/repository/user.repository';
@@ -8,10 +10,8 @@ import { getSession } from '../../../shared/utils/session';
 import { verifyRefreshToken } from '../../../shared/utils/jwt';
 import { toUserResponse } from '../../users/utils/user-response';
 import { env } from '../../../config/env';
-import { enqueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
 import { generateToken, hashToken } from '../../../shared/utils/token';
 import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
-import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
 
 export class AuthService {
   async register(data: { name: string; email: string; password: string }) {
@@ -156,7 +156,8 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
-
+    console.log('EMAIL:', email);
+    console.log('USER:', user);
     // Don't reveal whether the email exists
     if (!user) {
       return;
@@ -171,11 +172,15 @@ export class AuthService {
 
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
+    console.log('BEFORE EMAIL JOB');
+
     await enqueResetPasswordEmail({
       to: user.email,
       name: user.name,
       resetUrl,
     });
+
+    console.log('AFTER EMAIL JOB');
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

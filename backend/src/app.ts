@@ -33,13 +33,11 @@ app.use(compression());
 app.use(cookieParser());
 app.use(requestId);
 app.use(requestLogger);
-app.use(requestLogger);
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(globalRateLimiter);
 }
 
-app.use('/', healthRoute);
 app.use('/', healthRoute);
 app.use('/api/v1/urls', urlRoutes);
 app.use('/api/v1/analytics', analyticsRoute);

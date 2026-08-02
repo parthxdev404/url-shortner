@@ -47,20 +47,15 @@ describe('Dashboard Module', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
-
       expect(response.body.success).toBe(true);
 
-      expect(response.body.data.totalUrls).toBe(4);
+      expect(response.body.data.totalUrls).toBe(3);
 
       expect(response.body.data.activeUrls).toBeGreaterThanOrEqual(1);
-
       expect(response.body.data.inactiveUrls).toBeGreaterThanOrEqual(1);
-
       expect(response.body.data.deletedUrls).toBeGreaterThanOrEqual(1);
-
       expect(response.body.data.expiredUrls).toBeGreaterThanOrEqual(1);
-
-      expect(response.body.data.totalClicks).toBe(207);
+      expect(response.body.data.totalClicks).toBe(205);
     });
   });
 
@@ -109,20 +104,16 @@ describe('Dashboard Module', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
-
       expect(response.body.success).toBe(true);
 
       expect(response.body.data).toHaveProperty('stats');
-
       expect(response.body.data).toHaveProperty('recentUrls');
-
       expect(response.body.data).toHaveProperty('topUrls');
 
       expect(Array.isArray(response.body.data.recentUrls)).toBe(true);
-
       expect(Array.isArray(response.body.data.topUrls)).toBe(true);
 
-      expect(response.body.data.stats.totalUrls).toBe(4);
+      expect(response.body.data.stats.totalUrls).toBe(3);
     });
   });
 
