@@ -10,11 +10,14 @@ export default [
   prettier,
 
   {
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+  },
+  {
     files: ['**/*.ts'],
 
     languageOptions: {
       parserOptions: {
-        project: './tsconfig.json',
+        project: './tsconfig.eslint.json',
       },
     },
 

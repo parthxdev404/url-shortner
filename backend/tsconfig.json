@@ -3,8 +3,8 @@
     "target": "ES2022",
     "lib": ["ES2022"],
 
-   "module": "node16",
-"moduleResolution": "node16",
+    "module": "node16",
+    "moduleResolution": "node16",
 
     "rootDir": "./src",
     "outDir": "./dist",
@@ -32,8 +32,7 @@
     "resolveJsonModule": true,
 
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    
+    "skipLibCheck": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
