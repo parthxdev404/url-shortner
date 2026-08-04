@@ -111,10 +111,14 @@ export class UrlService {
     }
   }
 
-  async deactivateUrl(id: string): Promise<void> {
+  async deactivateUrl(id: string, userId: string): Promise<void> {
     const url = await urlRepository.findById(id);
 
     if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    if (url.userId.toString() !== userId) {
       throw new NotFoundError('URL not found.');
     }
 
@@ -122,7 +126,6 @@ export class UrlService {
 
     await cacheService.delete(CACHE_KEYS.url(url.shortCode));
   }
-
   async deleteUrl(id: string, userId: string): Promise<void> {
     const deletedUrl = await urlRepository.softDeleteById(id, userId);
 

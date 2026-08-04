@@ -1,4 +1,7 @@
 import { dashboardRepository } from '../repository/dashboard.repository';
+import { cacheService } from '../../../shared/cache/cache.service';
+import { CACHE_KEYS } from '../../../shared/cache/cache.key';
+import { CACHE_TTL } from '../../../shared/cache/cache.ttl';
 
 export type DashboardStats = {
   totalUrls: number;
@@ -11,8 +14,21 @@ export type DashboardStats = {
 
 export class DashboardService {
   async getDashboardStats(userId: string): Promise<DashboardStats> {
-    return dashboardRepository.getDashboardStats(userId);
+    const cacheKey = CACHE_KEYS.dashboard(userId);
+
+    const cached = await cacheService.get<DashboardStats>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const stats = await dashboardRepository.getDashboardStats(userId);
+
+    await cacheService.set(cacheKey, stats, CACHE_TTL.DASHBOARD);
+
+    return stats;
   }
+
   async getRecentUrls(userId: string) {
     return dashboardRepository.getRecentUrls(userId);
   }

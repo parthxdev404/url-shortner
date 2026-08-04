@@ -156,8 +156,6 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
-    console.log('EMAIL:', email);
-    console.log('USER:', user);
     // Don't reveal whether the email exists
     if (!user) {
       return;
@@ -172,15 +170,11 @@ export class AuthService {
 
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
-    console.log('BEFORE EMAIL JOB');
-
     await enqueResetPasswordEmail({
       to: user.email,
       name: user.name,
       resetUrl,
     });
-
-    console.log('AFTER EMAIL JOB');
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

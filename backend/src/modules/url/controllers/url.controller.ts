@@ -93,8 +93,9 @@ class UrlController {
 
   deactivate = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
+    const userId = req.user!.id;
 
-    await urlService.deactivateUrl(id);
+    await urlService.deactivateUrl(id, userId);
 
     res.status(StatusCodes.OK).json({
       success: true,
