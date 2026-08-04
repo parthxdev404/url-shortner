@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 
-
 mongoose.connection.on('connected', () => {
   logger.info('MongoDB connection established');
 });
@@ -25,7 +24,6 @@ export async function connectMongoDB(): Promise<void> {
     process.exit(1);
   }
 }
-
 
 export async function disconnectMongoDB(): Promise<void> {
   try {

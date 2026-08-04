@@ -4,7 +4,7 @@ import { env } from './env.js';
 export const logger = pino({
   level: env.LOG_LEVEL,
   timestamp: pino.stdTimeFunctions.isoTime,
-  
+
   // Conditionally spread the transport object only if in development
   ...(env.NODE_ENV === 'development' && {
     transport: {

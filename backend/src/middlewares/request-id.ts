@@ -1,13 +1,12 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 
-import { Request , Response , NextFunction } from "express";
+import { Request, Response, NextFunction } from 'express';
 
-export const requestId = (req : Request , res : Response , next : NextFunction) =>{
-    const id = randomUUID();
+export const requestId = (req: Request, res: Response, next: NextFunction) => {
+  const id = randomUUID();
 
-    req.headers['x-request-id'] = id;
-    res.setHeader('x-request-id' , id);
+  req.headers['x-request-id'] = id;
+  res.setHeader('x-request-id', id);
 
-    next()
-}
-
+  next();
+};

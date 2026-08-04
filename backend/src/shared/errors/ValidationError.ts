@@ -1,7 +1,7 @@
-import { AppError } from "./AppError";
+import { AppError } from './AppError';
 
-export class ValidateError extends AppError{
-    constructor(message = "Validation Failed"){
-        super(message , 422)
-    }
+export class ValidateError extends AppError {
+  constructor(message = 'Validation Failed') {
+    super(message, 422);
+  }
 }

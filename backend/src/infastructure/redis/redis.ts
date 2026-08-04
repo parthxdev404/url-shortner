@@ -1,11 +1,11 @@
-import Redis from 'ioredis'
-import { env } from '../../config/env'
-import { logger } from '../../config/logger'
+import Redis from 'ioredis';
+import { env } from '../../config/env';
+import { logger } from '../../config/logger';
 
-export const redis = new Redis(env.REDIS_URL , {
-    maxRetriesPerRequest : null,
-    lazyConnect : true
-})
+export const redis = new Redis(env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+  lazyConnect: true,
+});
 
 redis.on('connect', () => {
   logger.info('Redis connected');
@@ -37,7 +37,6 @@ export async function connectRedis(): Promise<void> {
     process.exit(1);
   }
 }
-
 
 export async function disconnectRedis(): Promise<void> {
   try {

@@ -1,7 +1,7 @@
-import { AppError } from "./AppError";
+import { AppError } from './AppError';
 
 export class BadRequestError extends AppError {
-    constructor(message = "BadRequest"){
-        super(message , 400)
-    }
+  constructor(message = 'BadRequest') {
+    super(message, 400);
+  }
 }
