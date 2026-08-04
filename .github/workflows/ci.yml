@@ -70,6 +70,9 @@ jobs:
 
       COOKIE_SECRET: cookie-secret
 
+      EMAIL_FROM: test@example.com
+      RESEND_API_KEY: test-resend-api-key
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
