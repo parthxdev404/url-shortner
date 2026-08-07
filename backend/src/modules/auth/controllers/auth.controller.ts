@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { env } from '../../../config/env';
+
 import { asyncHandler } from '../../../middlewares/async-handler';
 import { authService } from '../services/auth.services';
 import { toUserResponse } from '../../users/utils/user-response';
@@ -11,7 +11,7 @@ class AuthController {
 
     return res.status(StatusCodes.CREATED).json({
       success: true,
-      message: 'User created successfully',
+      message: 'User created successfully. Please verify your email.',
       data: user,
     });
   });
@@ -19,7 +19,7 @@ class AuthController {
   login = asyncHandler(async (req: Request, res: Response) => {
     const result = await authService.login(req.body);
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       message: 'LoggedIn Successfully',
       data: result,
@@ -29,7 +29,7 @@ class AuthController {
   me = asyncHandler(async (req: Request, res: Response) => {
     const user = await authService.me(req.user!.id);
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       data: toUserResponse(user),
     });
@@ -40,7 +40,7 @@ class AuthController {
 
     const result = await authService.refreshToken(refreshToken);
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       message: 'Token refreshed successfully.',
       data: result,
@@ -50,17 +50,32 @@ class AuthController {
   logOut = asyncHandler(async (req: Request, res: Response) => {
     await authService.logOut(req.user!.id);
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       message: 'Logged Out Successfully',
     });
   });
 
   verifyEmail = asyncHandler(async (req: Request, res: Response) => {
-    const token = req.query.token as string;
-    await authService.verifyEmail(token);
+    const { email, otp } = req.body;
 
-    res.redirect(`${env.CLIENT_URL}/login?verified=true`);
+    await authService.verifyEmail(email, otp);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Email verified successfully.',
+    });
+  });
+
+  resendVerificationOtp = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    await authService.resendVerificationOtp(email);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'If the account exists and is not verified, a verification code has been sent.',
+    });
   });
 
   forgotPassword = asyncHandler(async (req: Request, res: Response) => {
@@ -68,7 +83,7 @@ class AuthController {
 
     return res.status(StatusCodes.OK).json({
       success: true,
-      message: 'If an account with that email exists , a password reset link has been sent',
+      message: 'If an account with that email exists, a password reset link has been sent',
     });
   });
 
@@ -77,7 +92,7 @@ class AuthController {
 
     await authService.resetPassword(token, password);
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       message: 'Password reset successfully.',
     });

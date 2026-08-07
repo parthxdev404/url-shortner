@@ -35,16 +35,16 @@ export class UserRepository {
     );
   }
 
-  async updateVerificationToken(
+  async updateVerificationOtp(
     id: string,
-    verificationToken: string,
-    verificationTokenExpiresAt: Date,
+    verificationOtp: string,
+    verificationOtpExpiresAt: Date,
   ): Promise<UserDocument | null> {
     return UserModel.findByIdAndUpdate(
       id,
       {
-        verificationToken,
-        verificationTokenExpiresAt,
+        verificationOtp,
+        verificationOtpExpiresAt,
       },
       {
         returnDocument: 'after',
@@ -52,10 +52,11 @@ export class UserRepository {
     );
   }
 
-  async findByVerificationToken(verificationToken: string): Promise<UserDocument | null> {
+  async findByVerificationOtp(email: string): Promise<UserDocument | null> {
     return UserModel.findOne({
-      verificationToken,
-    });
+      email,
+      isVerified: false,
+    }).select('+verificationOtp +verificationOtpExpiresAt');
   }
 
   async verifyUser(id: string): Promise<UserDocument | null> {
@@ -63,8 +64,8 @@ export class UserRepository {
       id,
       {
         isVerified: true,
-        verificationToken: null,
-        verificationTokenExpiresAt: null,
+        verificationOtp: null,
+        verificationOtpExpiresAt: null,
       },
       {
         returnDocument: 'after',
@@ -83,7 +84,9 @@ export class UserRepository {
         passwordResetToken,
         passwordResetTokenExpiresAt,
       },
-      { returnDocument: 'after' },
+      {
+        returnDocument: 'after',
+      },
     );
   }
 
@@ -92,7 +95,13 @@ export class UserRepository {
   }
 
   async updatePassword(id: string, passwordHash: string): Promise<UserDocument | null> {
-    return UserModel.findByIdAndUpdate(id, { passwordHash }, { returnDocument: 'after' });
+    return UserModel.findByIdAndUpdate(
+      id,
+      { passwordHash },
+      {
+        returnDocument: 'after',
+      },
+    );
   }
 
   async clearPasswordResetToken(id: string): Promise<UserDocument | null> {
@@ -102,7 +111,9 @@ export class UserRepository {
         passwordResetToken: null,
         passwordResetTokenExpiresAt: null,
       },
-      { returnDocument: 'after' },
+      {
+        returnDocument: 'after',
+      },
     );
   }
 }

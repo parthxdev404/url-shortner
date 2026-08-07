@@ -12,7 +12,13 @@ export class EmailService {
       html,
     });
 
-    logger.info({ to, subject }, 'Email Sent Successfully');
+    logger.info(
+      {
+        to,
+        subject,
+      },
+      'Email sent successfully',
+    );
   }
 }
 

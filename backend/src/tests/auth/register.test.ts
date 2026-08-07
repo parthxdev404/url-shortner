@@ -7,10 +7,10 @@ import { UserModel } from '../../modules/users/model/user.model';
 import { vi } from 'vitest';
 
 vi.mock('../../shared/queue/jobs/send-verification-email.jobs', () => ({
-  enqueVerificationEmail: vi.fn().mockResolvedValue(undefined),
+  enqueueVerificationEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { enqueVerificationEmail } from '../../shared/queue/jobs/send-verification-email.jobs';
+import { enqueueVerificationEmail } from '../../shared/queue/jobs/send-verification-email.jobs';
 
 describe('POST /api/v1/auth/register', () => {
   it('should register a new user successfully', async () => {
@@ -34,9 +34,9 @@ describe('POST /api/v1/auth/register', () => {
 
     expect(response.body.data).not.toHaveProperty('passwordHash');
 
-    expect(enqueVerificationEmail).toHaveBeenCalledTimes(1);
+    expect(enqueueVerificationEmail).toHaveBeenCalledTimes(1);
 
-    expect(enqueVerificationEmail).toHaveBeenCalledWith(
+    expect(enqueueVerificationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: payload.email,
         name: payload.name,

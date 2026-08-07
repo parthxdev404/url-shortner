@@ -34,31 +34,39 @@ const userSchema = new Schema(
       enum: Object.values(UserRole),
       default: UserRole.USER,
     },
+
     isVerified: {
       type: Boolean,
       default: false,
     },
+
     lastLogin: {
       type: Date,
       default: null,
     },
-    verificationToken: {
+
+    verificationOtp: {
       type: String,
       default: null,
+      select: false,
     },
 
-    verificationTokenExpiresAt: {
+    verificationOtpExpiresAt: {
       type: Date,
       default: null,
+      select: false,
     },
+
     passwordResetToken: {
       type: String,
       default: null,
+      select: false,
     },
 
     passwordResetTokenExpiresAt: {
       type: Date,
       default: null,
+      select: false,
     },
   },
   {

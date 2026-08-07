@@ -29,3 +29,7 @@ export const verifyEmailSchema = z.object({
     token: z.string().min(1, 'Verification token is required'),
   }),
 });
+
+export const resendVerificationOtpSchema = z.object({
+  email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+});

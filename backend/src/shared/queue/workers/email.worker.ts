@@ -9,7 +9,7 @@ import { workerOption } from '../bull';
 interface VerificationEmailJob {
   to: string;
   name: string;
-  verificationUrl: string;
+  otp: string;
 }
 
 interface ResetPasswordEmailJob {
@@ -25,12 +25,14 @@ export const emailWorker = new Worker<EmailJob>(
   async (job: Job<EmailJob>) => {
     switch (job.name) {
       case 'send-verification-email': {
-        const { to, name, verificationUrl } = job.data as VerificationEmailJob;
+        const { to, name, otp } = job.data as VerificationEmailJob;
+
+        const email = verifyEmailTemplate(name, otp);
 
         await emailService.send({
           to,
-          subject: 'Verify Your Email',
-          html: verifyEmailTemplate(name, verificationUrl),
+          subject: email.subject,
+          html: email.html,
         });
 
         logger.info(

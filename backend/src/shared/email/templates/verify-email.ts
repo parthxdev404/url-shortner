@@ -1,63 +1,120 @@
-export function verifyEmailTemplate(name: string, verificationUrl: string): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8" />
-<title>Verify your email</title>
-</head>
+export const verifyEmailTemplate = (name: string, otp: string) => {
+  return {
+    subject: 'Verify your email address',
 
-<body
-  style="
-    font-family: Arial, Helvetica, sans-serif;
-    background:#f5f5f5;
-    padding:40px;
-  "
->
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Verify your email</title>
+        </head>
 
-<div
-  style="
-    max-width:600px;
-    margin:auto;
-    background:white;
-    padding:32px;
-    border-radius:12px;
-  "
->
+        <body
+          style="
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f5;
+            font-family: Arial, sans-serif;
+          "
+        >
+          <div
+            style="
+              max-width: 600px;
+              margin: 40px auto;
+              background: #ffffff;
+              border-radius: 12px;
+              padding: 40px;
+            "
+          >
+            <h1 style="margin: 0 0 20px; color: #18181b;">
+              Verify your email
+            </h1>
 
-<h2>Hello ${name}, 👋</h2>
+            <p
+              style="
+                font-size: 16px;
+                line-height: 1.6;
+                color: #52525b;
+              "
+            >
+              Hi ${name},
+            </p>
 
-<p>
-Thank you for registering.
-</p>
+            <p
+              style="
+                font-size: 16px;
+                line-height: 1.6;
+                color: #52525b;
+              "
+            >
+              Thanks for creating an account. Use the verification code below
+              to verify your email address.
+            </p>
 
-<p>
-Please verify your email address by clicking the button below.
-</p>
+            <div
+              style="
+                margin: 30px 0;
+                text-align: center;
+              "
+            >
+              <div
+                style="
+                  display: inline-block;
+                  padding: 16px 28px;
+                  background-color: #f4f4f5;
+                  border-radius: 10px;
+                  font-size: 32px;
+                  font-weight: bold;
+                  letter-spacing: 8px;
+                  color: #18181b;
+                "
+              >
+                ${otp}
+              </div>
+            </div>
 
-<p style="margin:32px 0">
-<a
-href="${verificationUrl}"
-style="
-background:#2563eb;
-color:white;
-padding:14px 24px;
-text-decoration:none;
-border-radius:8px;
-display:inline-block;
-"
->
-Verify Email
-</a>
-</p>
+            <p
+              style="
+                font-size: 14px;
+                line-height: 1.6;
+                color: #71717a;
+              "
+            >
+              This code will expire in 10 minutes.
+            </p>
 
-<p>
-If you didn't create this account, you can safely ignore this email.
-</p>
+            <p
+              style="
+                font-size: 14px;
+                line-height: 1.6;
+                color: #71717a;
+              "
+            >
+              If you didn't create this account, you can safely ignore this
+              email.
+            </p>
 
-</div>
+            <hr
+              style="
+                border: 0;
+                border-top: 1px solid #e4e4e7;
+                margin: 30px 0;
+              "
+            />
 
-</body>
-</html>
-`;
-}
+            <p
+              style="
+                font-size: 12px;
+                color: #a1a1aa;
+              "
+            >
+              This is an automated email. Please do not reply.
+            </p>
+          </div>
+        </body>
+      </html>
+    `,
+  };
+};

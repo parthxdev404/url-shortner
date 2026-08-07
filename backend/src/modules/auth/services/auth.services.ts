@@ -1,15 +1,17 @@
 import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
-import { enqueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
+import { enqueueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
 import { ConflictError, UnauthorizedError } from '../../../shared/errors';
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
 import { userRepository } from '../../users/repository/user.repository';
-import { UserDocument } from '../../users/model/user.model';
-import { generateAccessToken, generateRefreshToken } from '../../../shared/utils/jwt';
-import { deleteSession, saveSession } from '../../../shared/utils/session';
-import { getSession } from '../../../shared/utils/session';
-import { verifyRefreshToken } from '../../../shared/utils/jwt';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from '../../../shared/utils/jwt';
+import { deleteSession, getSession, saveSession } from '../../../shared/utils/session';
 import { toUserResponse } from '../../users/utils/user-response';
 import { env } from '../../../config/env';
+import { generateOtp, hashOtp, compareOtp } from '../../../shared/utils/otp';
 import { generateToken, hashToken } from '../../../shared/utils/token';
 import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
 
@@ -29,23 +31,73 @@ export class AuthService {
       passwordHash,
     });
 
-    const verificationToken = generateToken();
+    const otp = generateOtp();
+    const hashedOtp = await hashOtp(otp);
 
-    console.log('RAW TOKEN:', verificationToken);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const hashedToken = hashToken(verificationToken);
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.EMAIL_VERIFICATION);
+    await userRepository.updateVerificationOtp(user.id, hashedOtp, expiresAt);
 
-    await userRepository.updateVerificationToken(user.id, hashedToken, expiresAt);
-    const verificationUrl = `${env.APP_URL}/verify-email?token=${verificationToken}`;
-
-    await enqueVerificationEmail({
+    await enqueueVerificationEmail({
       to: user.email,
       name: user.name,
-      verificationUrl,
+      otp,
     });
 
     return toUserResponse(user);
+  }
+
+  async verifyEmail(email: string, otp: string): Promise<void> {
+    const user = await userRepository.findByVerificationOtp(email);
+
+    if (!user) {
+      throw new UnauthorizedError('Invalid verification request.');
+    }
+
+    if (user.isVerified) {
+      throw new UnauthorizedError('Email already verified.');
+    }
+
+    if (!user.verificationOtpExpiresAt || user.verificationOtpExpiresAt < new Date()) {
+      throw new UnauthorizedError('Verification code has expired.');
+    }
+
+    if (!user.verificationOtp) {
+      throw new UnauthorizedError('Verification code is invalid.');
+    }
+
+    const isOtpValid = await compareOtp(otp, user.verificationOtp);
+
+    if (!isOtpValid) {
+      throw new UnauthorizedError('Invalid verification code.');
+    }
+
+    await userRepository.verifyUser(user.id);
+  }
+
+  async resendVerificationOtp(email: string): Promise<void> {
+    const user = await userRepository.findByEmail(email);
+
+    if (!user) {
+      return;
+    }
+
+    if (user.isVerified) {
+      throw new ConflictError('Email is already verified.');
+    }
+
+    const otp = generateOtp();
+    const hashedOtp = await hashOtp(otp);
+
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await userRepository.updateVerificationOtp(user.id, hashedOtp, expiresAt);
+
+    await enqueueVerificationEmail({
+      to: user.email,
+      name: user.name,
+      otp,
+    });
   }
 
   async login(data: { email: string; password: string }) {
@@ -61,14 +113,26 @@ export class AuthService {
       throw new UnauthorizedError('Invalid email or password');
     }
 
+    if (!user.isVerified) {
+      throw new UnauthorizedError('Please verify your email before logging in.');
+    }
+
     await userRepository.updateLastLogin(user.id);
 
-    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
-    const refreshToken = generateRefreshToken({ userId: user.id });
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      role: user.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: user.id,
+    });
+
     await saveSession(user.id, {
       refreshToken,
       createdAt: new Date().toISOString(),
     });
+
     return {
       accessToken,
       refreshToken,
@@ -76,12 +140,13 @@ export class AuthService {
     };
   }
 
-  async me(userId: string): Promise<UserDocument> {
+  async me(userId: string) {
     const user = await userRepository.findProfileById(userId);
 
     if (!user) {
       throw new UnauthorizedError('User not found');
     }
+
     return user;
   }
 
@@ -134,29 +199,10 @@ export class AuthService {
     await deleteSession(userId);
   }
 
-  async verifyEmail(token: string): Promise<void> {
-    const hashedToken = hashToken(token);
-
-    const user = await userRepository.findByVerificationToken(hashedToken);
-
-    if (!user) {
-      throw new UnauthorizedError('Invalid Verification Link');
-    }
-
-    if (user.isVerified) {
-      throw new UnauthorizedError('Email ALready Verified');
-    }
-
-    if (!user.verificationTokenExpiresAt || user.verificationTokenExpiresAt < new Date()) {
-      throw new UnauthorizedError('Verification link has expired.');
-    }
-
-    await userRepository.verifyUser(user.id);
-  }
-
   async forgotPassword(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
-    // Don't reveal whether the email exists
+
+    // Don't reveal whether the email exists.
     if (!user) {
       return;
     }
