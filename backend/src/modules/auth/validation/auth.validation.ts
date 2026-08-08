@@ -25,11 +25,31 @@ export const refreshSchema = z.object({
 });
 
 export const verifyEmailSchema = z.object({
-  query: z.object({
-    token: z.string().min(1, 'Verification token is required'),
+  body: z.object({
+    email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+
+    otp: z.string().regex(/^\d{6}$/, 'Verification code must be 6 digits.'),
   }),
 });
 
 export const resendVerificationOtpSchema = z.object({
-  email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+  body: z.object({
+    email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+  }),
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().trim().email('Please provide a valid email address.').toLowerCase(),
+
+    otp: z.string().regex(/^\d{6}$/, 'Reset code must be 6 digits.'),
+
+    password: z.string().min(8).max(64),
+  }),
 });

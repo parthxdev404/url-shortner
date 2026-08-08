@@ -10,6 +10,8 @@ vi.mock('../../shared/queue/jobs/send-verification-email.jobs', () => ({
 
 import { enqueueVerificationEmail } from '../../shared/queue/jobs/send-verification-email.jobs';
 
+const mockedEnqueueVerificationEmail = vi.mocked(enqueueVerificationEmail);
+
 describe('Email Verification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,34 +28,29 @@ describe('Email Verification', () => {
       const registerResponse = await request(app).post('/api/v1/auth/register').send(payload);
 
       expect(registerResponse.status).toBe(201);
+      expect(mockedEnqueueVerificationEmail).toHaveBeenCalledTimes(1);
 
-      expect(enqueueVerificationEmail).toHaveBeenCalledTimes(1);
-
-      const emailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
+      const emailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
 
       expect(emailJob).toBeDefined();
       expect(emailJob?.to).toBe(payload.email);
       expect(emailJob?.name).toBe(payload.name);
       expect(emailJob?.otp).toMatch(/^\d{6}$/);
 
-      const otp = emailJob!.otp;
-
       const response = await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
-        otp,
+        otp: emailJob!.otp,
       });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
 
-      const user = await UserModel.findOne({
-        email: payload.email,
-      });
+      const user = await UserModel.findOne({ email: payload.email });
 
       expect(user).not.toBeNull();
       expect(user?.isVerified).toBe(true);
-      expect(user?.verificationOtp).toBeNull();
-      expect(user?.verificationOtpExpiresAt).toBeNull();
+      expect(user?.verificationOtp ?? null).toBeNull();
+      expect(user?.verificationOtpExpiresAt ?? null).toBeNull();
     });
 
     it('should reject an invalid OTP', async () => {
@@ -73,9 +70,7 @@ describe('Email Verification', () => {
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
 
-      const user = await UserModel.findOne({
-        email: payload.email,
-      });
+      const user = await UserModel.findOne({ email: payload.email });
 
       expect(user?.isVerified).toBe(false);
     });
@@ -89,16 +84,16 @@ describe('Email Verification', () => {
 
       await request(app).post('/api/v1/auth/register').send(payload);
 
+      const emailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
+
+      expect(emailJob?.otp).toMatch(/^\d{6}$/);
+
       await UserModel.findOneAndUpdate(
         { email: payload.email },
         {
-          verificationOtpExpiresAt: new Date(Date.now() - 60 * 1000),
+          verificationOtpExpiresAt: new Date(Date.now() - 60_000),
         },
       );
-
-      const emailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
-
-      expect(emailJob?.otp).toMatch(/^\d{6}$/);
 
       const response = await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
@@ -108,9 +103,7 @@ describe('Email Verification', () => {
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
 
-      const user = await UserModel.findOne({
-        email: payload.email,
-      });
+      const user = await UserModel.findOne({ email: payload.email });
 
       expect(user?.isVerified).toBe(false);
     });
@@ -124,22 +117,20 @@ describe('Email Verification', () => {
 
       await request(app).post('/api/v1/auth/register').send(payload);
 
-      const emailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
+      const emailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
 
       expect(emailJob?.otp).toMatch(/^\d{6}$/);
 
-      const otp = emailJob!.otp;
-
       const firstResponse = await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
-        otp,
+        otp: emailJob!.otp,
       });
 
       expect(firstResponse.status).toBe(200);
 
       const secondResponse = await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
-        otp,
+        otp: emailJob!.otp,
       });
 
       expect(secondResponse.status).toBe(401);
@@ -177,11 +168,9 @@ describe('Email Verification', () => {
 
       await request(app).post('/api/v1/auth/register').send(payload);
 
-      expect(enqueueVerificationEmail).toHaveBeenCalledTimes(1);
+      expect(mockedEnqueueVerificationEmail).toHaveBeenCalledTimes(1);
 
-      const firstEmailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
-
-      expect(firstEmailJob?.otp).toMatch(/^\d{6}$/);
+      const firstEmailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
 
       const response = await request(app).post('/api/v1/auth/resend-verification-otp').send({
         email: payload.email,
@@ -190,15 +179,13 @@ describe('Email Verification', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
 
-      expect(enqueueVerificationEmail).toHaveBeenCalledTimes(2);
+      expect(mockedEnqueueVerificationEmail).toHaveBeenCalledTimes(2);
 
-      const secondEmailJob = vi.mocked(enqueueVerificationEmail).mock.calls[1]?.[0];
+      const secondEmailJob = mockedEnqueueVerificationEmail.mock.calls[1]?.[0];
 
-      expect(secondEmailJob).toBeDefined();
       expect(secondEmailJob?.to).toBe(payload.email);
       expect(secondEmailJob?.name).toBe(payload.name);
       expect(secondEmailJob?.otp).toMatch(/^\d{6}$/);
-
       expect(secondEmailJob?.otp).not.toBe(firstEmailJob?.otp);
     });
 
@@ -209,8 +196,7 @@ describe('Email Verification', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-
-      expect(enqueueVerificationEmail).not.toHaveBeenCalled();
+      expect(mockedEnqueueVerificationEmail).not.toHaveBeenCalled();
     });
 
     it('should reject resend for an already verified user', async () => {
@@ -222,9 +208,7 @@ describe('Email Verification', () => {
 
       await request(app).post('/api/v1/auth/register').send(payload);
 
-      const emailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
-
-      expect(emailJob?.otp).toMatch(/^\d{6}$/);
+      const emailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
 
       await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
@@ -269,9 +253,7 @@ describe('Email Verification', () => {
 
       await request(app).post('/api/v1/auth/register').send(payload);
 
-      const emailJob = vi.mocked(enqueueVerificationEmail).mock.calls[0]?.[0];
-
-      expect(emailJob?.otp).toMatch(/^\d{6}$/);
+      const emailJob = mockedEnqueueVerificationEmail.mock.calls[0]?.[0];
 
       await request(app).post('/api/v1/auth/verify-email').send({
         email: payload.email,
@@ -285,7 +267,6 @@ describe('Email Verification', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-
       expect(response.body.data.accessToken).toBeDefined();
       expect(response.body.data.refreshToken).toBeDefined();
       expect(response.body.data.user.email).toBe(payload.email);

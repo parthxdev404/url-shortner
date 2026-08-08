@@ -15,35 +15,40 @@ describe('POST /api/v1/auth/logout', () => {
     expect(response.status).toBe(200);
 
     expect(response.body.success).toBe(true);
-
-    expect(response.body.message).toBe('Logged Out Successfully');
+    expect(response.body.message).toBe('Logged out successfully.');
   });
 
   it('should invalidate refresh token after logout', async () => {
     const { accessToken, refreshToken } = await createAuthenticatedUser();
 
-    await request(app).post('/api/v1/auth/logout').set('Authorization', `Bearer ${accessToken}`);
+    const logoutResponse = await request(app)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`);
 
-    const response = await request(app).post('/api/v1/auth/refresh').send({
+    expect(logoutResponse.status).toBe(200);
+    expect(logoutResponse.body.success).toBe(true);
+
+    const refreshResponse = await request(app).post('/api/v1/auth/refresh').send({
       refreshToken,
     });
 
-    expect(response.status).toBe(401);
-
-    expect(response.body.success).toBe(false);
+    expect(refreshResponse.status).toBe(401);
+    expect(refreshResponse.body.success).toBe(false);
   });
 
-  it('should reject logout without token', async () => {
+  it('should reject logout without access token', async () => {
     const response = await request(app).post('/api/v1/auth/logout');
 
     expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
   });
 
-  it('should reject invalid access token', async () => {
+  it('should reject logout with an invalid access token', async () => {
     const response = await request(app)
       .post('/api/v1/auth/logout')
       .set('Authorization', 'Bearer invalid-token');
 
     expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
   });
 });

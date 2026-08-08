@@ -3,19 +3,18 @@ import { validate } from '../../../middlewares/validate';
 
 import { authController } from '../controllers/auth.controller';
 import {
+  forgotPasswordSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
-  verifyEmailSchema,
   resendVerificationOtpSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
 } from '../validation/auth.validation';
 
 import { authenticate } from '../../../middlewares/authenticate.middleware';
 import { UserRole } from '../../users/model/user.model';
 import { authorize } from '../../../middlewares/authorize';
-
-import { forgotPasswordSchema } from '../validation/forgot-password-schema';
-import { resetPasswordSchema } from '../validation/reset-password-schema';
 
 const router = Router();
 
@@ -25,9 +24,7 @@ router.post('/login', validate(loginSchema), authController.login);
 
 router.post('/refresh', validate(refreshSchema), authController.refreshToken);
 
-router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
-
-router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+router.post('/logout', authenticate, authController.logOut);
 
 router.post('/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
 
@@ -37,9 +34,11 @@ router.post(
   authController.resendVerificationOtp,
 );
 
-router.get('/me', authenticate, authController.me);
+router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
 
-router.post('/logout', authenticate, authController.logOut);
+router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+
+router.get('/me', authenticate, authController.me);
 
 router.get('/admin', authenticate, authorize(UserRole.ADMIN), (_req, res) => {
   res.json({

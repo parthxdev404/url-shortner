@@ -5,8 +5,8 @@ import app from '../helpers/app';
 import { createAuthenticatedUser } from '../helpers/auth';
 
 describe('GET /api/v1/auth/me', () => {
-  it('should return current user', async () => {
-    const { accessToken, payload } = await createAuthenticatedUser();
+  it('should return current authenticated user', async () => {
+    const { accessToken, email } = await createAuthenticatedUser();
 
     const response = await request(app)
       .get('/api/v1/auth/me')
@@ -16,24 +16,28 @@ describe('GET /api/v1/auth/me', () => {
 
     expect(response.body.success).toBe(true);
 
-    expect(response.body.data.email).toBe(payload.email);
+    expect(response.body.data).toBeDefined();
 
-    expect(response.body.data.name).toBe(payload.name);
+    expect(response.body.data.email).toBe(email);
+
+    expect(response.body.data.name).toBe('Test User');
 
     expect(response.body.data).not.toHaveProperty('passwordHash');
   });
 
-  it('should reject missing token', async () => {
+  it('should reject request without access token', async () => {
     const response = await request(app).get('/api/v1/auth/me');
 
     expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
   });
 
-  it('should reject invalid token', async () => {
+  it('should reject request with an invalid access token', async () => {
     const response = await request(app)
       .get('/api/v1/auth/me')
       .set('Authorization', 'Bearer invalid-token');
 
     expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
   });
 });

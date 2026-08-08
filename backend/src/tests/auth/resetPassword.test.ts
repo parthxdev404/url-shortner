@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import app from '../helpers/app';
 import { registerUser } from '../helpers/user';
+import { UserModel } from '../../modules/users/model/user.model';
 import { emailQueue } from '../../shared/queue/queues/email.queue';
 
-async function generateResetToken(email: string): Promise<string> {
+async function generateResetOtp(email: string): Promise<string> {
   const addSpy = vi.spyOn(emailQueue, 'add').mockResolvedValue({} as never);
 
   const response = await request(app).post('/api/v1/auth/forgot-password').send({
@@ -13,18 +14,23 @@ async function generateResetToken(email: string): Promise<string> {
   });
 
   expect(response.status).toBe(200);
+  expect(response.body.success).toBe(true);
 
   expect(addSpy).toHaveBeenCalledTimes(1);
 
-  const [, payload] = addSpy.mock.calls[0]!;
+  const [, jobData] = addSpy.mock.calls[0]!;
 
-  const token = new URL(payload.resetUrl).searchParams.get('token');
+  expect(jobData).toBeDefined();
+  expect(jobData.to).toBe(email);
+  expect(jobData.name).toBeDefined();
+  expect(jobData.otp).toBeDefined();
+  expect(jobData.otp).toMatch(/^\d{6}$/);
 
-  expect(token).toBeTruthy();
+  const otp = jobData.otp;
 
   addSpy.mockRestore();
 
-  return token!;
+  return otp;
 }
 
 describe('POST /api/v1/auth/reset-password', () => {
@@ -35,10 +41,11 @@ describe('POST /api/v1/auth/reset-password', () => {
   it('should reset password successfully', async () => {
     const { payload } = await registerUser();
 
-    const token = await generateResetToken(payload.email);
+    const otp = await generateResetOtp(payload.email);
 
     const resetResponse = await request(app).post('/api/v1/auth/reset-password').send({
-      token,
+      email: payload.email,
+      otp,
       password: 'NewPassword@123',
     });
 
@@ -46,25 +53,24 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(resetResponse.body.success).toBe(true);
     expect(resetResponse.body.message).toBe('Password reset successfully.');
 
-    const oldLogin = await request(app).post('/api/v1/auth/login').send({
+    const user = await UserModel.findOne({
       email: payload.email,
-      password: payload.password,
-    });
+    }).select('+passwordResetOtp +passwordResetOtpExpiresAt');
 
-    expect(oldLogin.status).toBe(401);
+    expect(user).not.toBeNull();
 
-    const newLogin = await request(app).post('/api/v1/auth/login').send({
-      email: payload.email,
-      password: 'NewPassword@123',
-    });
-
-    expect(newLogin.status).toBe(200);
-    expect(newLogin.body.success).toBe(true);
+    expect(user?.passwordResetOtp).toBeNull();
+    expect(user?.passwordResetOtpExpiresAt).toBeNull();
   });
 
-  it('should reject invalid reset token', async () => {
+  it('should reject an invalid reset OTP', async () => {
+    const { payload } = await registerUser();
+
+    await generateResetOtp(payload.email);
+
     const response = await request(app).post('/api/v1/auth/reset-password').send({
-      token: 'invalid-token',
+      email: payload.email,
+      otp: '999999',
       password: 'NewPassword@123',
     });
 
@@ -72,49 +78,101 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(response.body.success).toBe(false);
   });
 
-  it('should reject missing token', async () => {
+  it('should reject an expired reset OTP', async () => {
+    const { payload } = await registerUser();
+
+    const otp = await generateResetOtp(payload.email);
+
+    await UserModel.findOneAndUpdate(
+      { email: payload.email },
+      {
+        passwordResetOtpExpiresAt: new Date(Date.now() - 60 * 1000),
+      },
+    );
+
     const response = await request(app).post('/api/v1/auth/reset-password').send({
+      email: payload.email,
+      otp,
+      password: 'NewPassword@123',
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('should reject missing email', async () => {
+    const response = await request(app).post('/api/v1/auth/reset-password').send({
+      otp: '123456',
       password: 'NewPassword@123',
     });
 
     expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('should reject missing OTP', async () => {
+    const response = await request(app).post('/api/v1/auth/reset-password').send({
+      email: 'test@example.com',
+      password: 'NewPassword@123',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('should reject an OTP with an invalid format', async () => {
+    const response = await request(app).post('/api/v1/auth/reset-password').send({
+      email: 'test@example.com',
+      otp: '12345',
+      password: 'NewPassword@123',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
   });
 
   it('should reject missing password', async () => {
     const response = await request(app).post('/api/v1/auth/reset-password').send({
-      token: 'some-token',
+      email: 'test@example.com',
+      otp: '123456',
     });
 
     expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
   });
 
-  it('should reject weak password', async () => {
+  it('should reject a weak password', async () => {
     const { payload } = await registerUser();
 
-    const token = await generateResetToken(payload.email);
+    const otp = await generateResetOtp(payload.email);
 
     const response = await request(app).post('/api/v1/auth/reset-password').send({
-      token,
+      email: payload.email,
+      otp,
       password: '123',
     });
 
     expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
   });
 
-  it('should not allow reusing the same reset token', async () => {
+  it('should not allow the same reset OTP to be reused', async () => {
     const { payload } = await registerUser();
 
-    const token = await generateResetToken(payload.email);
+    const otp = await generateResetOtp(payload.email);
 
     const first = await request(app).post('/api/v1/auth/reset-password').send({
-      token,
+      email: payload.email,
+      otp,
       password: 'NewPassword@123',
     });
 
     expect(first.status).toBe(200);
+    expect(first.body.success).toBe(true);
 
     const second = await request(app).post('/api/v1/auth/reset-password').send({
-      token,
+      email: payload.email,
+      otp,
       password: 'AnotherPassword@123',
     });
 
@@ -122,27 +180,56 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(second.body.success).toBe(false);
   });
 
-  it('should invalidate existing refresh tokens after password reset', async () => {
+  it('should store a new password hash after reset', async () => {
     const { payload } = await registerUser();
 
-    const login = await request(app).post('/api/v1/auth/login').send({
+    const userBefore = await UserModel.findOne({
       email: payload.email,
-      password: payload.password,
-    });
+    }).select('+passwordHash');
 
-    const oldRefreshToken = login.body.data.refreshToken;
+    expect(userBefore).not.toBeNull();
 
-    const token = await generateResetToken(payload.email);
+    const oldPasswordHash = userBefore!.passwordHash;
 
-    await request(app).post('/api/v1/auth/reset-password').send({
-      token,
+    const otp = await generateResetOtp(payload.email);
+
+    const response = await request(app).post('/api/v1/auth/reset-password').send({
+      email: payload.email,
+      otp,
       password: 'NewPassword@123',
     });
 
-    const refreshResponse = await request(app).post('/api/v1/auth/refresh').send({
-      refreshToken: oldRefreshToken,
+    expect(response.status).toBe(200);
+
+    const userAfter = await UserModel.findOne({
+      email: payload.email,
+    }).select('+passwordHash');
+
+    expect(userAfter).not.toBeNull();
+    expect(userAfter!.passwordHash).toBeDefined();
+    expect(userAfter!.passwordHash).not.toBe(oldPasswordHash);
+  });
+
+  it('should clear the password reset OTP after successful reset', async () => {
+    const { payload } = await registerUser();
+
+    const otp = await generateResetOtp(payload.email);
+
+    const response = await request(app).post('/api/v1/auth/reset-password').send({
+      email: payload.email,
+      otp,
+      password: 'NewPassword@123',
     });
 
-    expect(refreshResponse.status).toBe(401);
+    expect(response.status).toBe(200);
+
+    const user = await UserModel.findOne({
+      email: payload.email,
+    }).select('+passwordResetOtp +passwordResetOtpExpiresAt');
+
+    expect(user).not.toBeNull();
+
+    expect(user?.passwordResetOtp).toBeNull();
+    expect(user?.passwordResetOtpExpiresAt).toBeNull();
   });
 });

@@ -5,7 +5,6 @@ import { emailService } from '../../email/email.service';
 import { resetPasswordTemplate } from '../../email/templates/reset-password';
 import { verifyEmailTemplate } from '../../email/templates/verify-email';
 import { workerOption } from '../bull';
-
 interface VerificationEmailJob {
   to: string;
   name: string;
@@ -15,7 +14,7 @@ interface VerificationEmailJob {
 interface ResetPasswordEmailJob {
   to: string;
   name: string;
-  resetUrl: string;
+  otp: string;
 }
 
 type EmailJob = VerificationEmailJob | ResetPasswordEmailJob;
@@ -45,14 +44,15 @@ export const emailWorker = new Worker<EmailJob>(
 
         break;
       }
-
       case 'send-reset-password-email': {
-        const { to, name, resetUrl } = job.data as ResetPasswordEmailJob;
+        const { to, name, otp } = job.data as ResetPasswordEmailJob;
+
+        const email = resetPasswordTemplate(name, otp);
 
         await emailService.send({
           to,
-          subject: 'Reset Your Password',
-          html: resetPasswordTemplate(name, resetUrl),
+          subject: email.subject,
+          html: email.html,
         });
 
         logger.info(
@@ -65,7 +65,6 @@ export const emailWorker = new Worker<EmailJob>(
 
         break;
       }
-
       default: {
         logger.warn(
           {

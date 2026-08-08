@@ -18,16 +18,16 @@ describe('POST /api/v1/auth/refresh', () => {
 
     expect(response.body.message).toBe('Token refreshed successfully.');
 
-    expect(response.body.data.accessToken).toBeDefined();
+    expect(response.body.data).toBeDefined();
 
+    expect(response.body.data.accessToken).toBeDefined();
     expect(response.body.data.refreshToken).toBeDefined();
 
     expect(response.body.data.accessToken).not.toBe(accessToken);
-
     expect(response.body.data.refreshToken).not.toBe(refreshToken);
   });
 
-  it('should reject invalid refresh token', async () => {
+  it('should reject an invalid refresh token', async () => {
     const response = await request(app).post('/api/v1/auth/refresh').send({
       refreshToken: 'invalid-token',
     });
@@ -37,27 +37,37 @@ describe('POST /api/v1/auth/refresh', () => {
     expect(response.body.success).toBe(false);
   });
 
-  it('should reject missing refresh token', async () => {
+  it('should reject a missing refresh token', async () => {
     const response = await request(app).post('/api/v1/auth/refresh').send({});
 
     expect(response.status).toBe(400);
+
+    expect(response.body.success).toBe(false);
   });
 
-  it('should reject reused refresh token', async () => {
+  it('should reject a reused refresh token', async () => {
     const { refreshToken } = await createAuthenticatedUser();
 
-    const first = await request(app).post('/api/v1/auth/refresh').send({
+    // First refresh rotates the refresh token.
+    const firstResponse = await request(app).post('/api/v1/auth/refresh').send({
       refreshToken,
     });
 
-    expect(first.status).toBe(200);
+    expect(firstResponse.status).toBe(200);
 
-    const second = await request(app).post('/api/v1/auth/refresh').send({
+    expect(firstResponse.body.success).toBe(true);
+
+    expect(firstResponse.body.data.refreshToken).toBeDefined();
+
+    expect(firstResponse.body.data.refreshToken).not.toBe(refreshToken);
+
+    // The original refresh token should now be invalid.
+    const secondResponse = await request(app).post('/api/v1/auth/refresh').send({
       refreshToken,
     });
 
-    expect(second.status).toBe(401);
+    expect(secondResponse.status).toBe(401);
 
-    expect(second.body.success).toBe(false);
+    expect(secondResponse.body.success).toBe(false);
   });
 });

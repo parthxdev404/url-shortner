@@ -1,21 +1,29 @@
 import { enqueResetPasswordEmail } from '../../../shared/queue/jobs/send-reset-password-email.job';
 import { enqueueVerificationEmail } from '../../../shared/queue/jobs/send-verification-email.jobs';
+import { logger } from '../../../config/logger';
 import { ConflictError, UnauthorizedError } from '../../../shared/errors';
+
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
+
 import { userRepository } from '../../users/repository/user.repository';
+
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } from '../../../shared/utils/jwt';
+
 import { deleteSession, getSession, saveSession } from '../../../shared/utils/session';
+
 import { toUserResponse } from '../../users/utils/user-response';
-import { env } from '../../../config/env';
+
 import { generateOtp, hashOtp, compareOtp } from '../../../shared/utils/otp';
-import { generateToken, hashToken } from '../../../shared/utils/token';
-import { TOKEN_EXPIRY } from '../../../shared/constrants/token';
 
 export class AuthService {
+  // ─────────────────────────────────────────────
+  // Register
+  // ─────────────────────────────────────────────
+
   async register(data: { name: string; email: string; password: string }) {
     const existingUser = await userRepository.findByEmail(data.email);
 
@@ -31,7 +39,9 @@ export class AuthService {
       passwordHash,
     });
 
+    // Generate email verification OTP
     const otp = generateOtp();
+
     const hashedOtp = await hashOtp(otp);
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -46,6 +56,10 @@ export class AuthService {
 
     return toUserResponse(user);
   }
+
+  // ─────────────────────────────────────────────
+  // Verify Email
+  // ─────────────────────────────────────────────
 
   async verifyEmail(email: string, otp: string): Promise<void> {
     const user = await userRepository.findByVerificationOtp(email);
@@ -75,9 +89,14 @@ export class AuthService {
     await userRepository.verifyUser(user.id);
   }
 
+  // ─────────────────────────────────────────────
+  // Resend Verification OTP
+  // ─────────────────────────────────────────────
+
   async resendVerificationOtp(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
 
+    // Do not reveal whether account exists
     if (!user) {
       return;
     }
@@ -87,6 +106,7 @@ export class AuthService {
     }
 
     const otp = generateOtp();
+
     const hashedOtp = await hashOtp(otp);
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -100,17 +120,21 @@ export class AuthService {
     });
   }
 
+  // ─────────────────────────────────────────────
+  // Login
+  // ─────────────────────────────────────────────
+
   async login(data: { email: string; password: string }) {
     const user = await userRepository.findByEmailWithPassword(data.email);
 
     if (!user) {
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError('Invalid email or password.');
     }
 
     const isPasswordValid = await comparePassword(data.password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError('Invalid email or password.');
     }
 
     if (!user.isVerified) {
@@ -140,15 +164,23 @@ export class AuthService {
     };
   }
 
+  // ─────────────────────────────────────────────
+  // Current User
+  // ─────────────────────────────────────────────
+
   async me(userId: string) {
     const user = await userRepository.findProfileById(userId);
 
     if (!user) {
-      throw new UnauthorizedError('User not found');
+      throw new UnauthorizedError('User not found.');
     }
 
     return user;
   }
+
+  // ─────────────────────────────────────────────
+  // Refresh Token
+  // ─────────────────────────────────────────────
 
   async refreshToken(refreshToken: string) {
     let payload;
@@ -195,54 +227,85 @@ export class AuthService {
     };
   }
 
+  // ─────────────────────────────────────────────
+  // Logout
+  // ─────────────────────────────────────────────
+
   async logOut(userId: string): Promise<void> {
     await deleteSession(userId);
   }
 
+  // ─────────────────────────────────────────────
+  // Forgot Password
+  // ─────────────────────────────────────────────
+
   async forgotPassword(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
 
-    // Don't reveal whether the email exists.
+    // Never reveal whether an email exists.
     if (!user) {
       return;
     }
 
-    const resetToken = generateToken();
-    const hashedToken = hashToken(resetToken);
+    const otp = generateOtp();
 
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY.PASSWORD_RESET);
+    const hashedOtp = await hashOtp(otp);
 
-    await userRepository.updatePasswordResetToken(user.id, hashedToken, expiresAt);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
+    await userRepository.updatePasswordResetOtp(user.id, hashedOtp, expiresAt);
 
     await enqueResetPasswordEmail({
       to: user.email,
       name: user.name,
-      resetUrl,
+      otp,
     });
   }
 
-  async resetPassword(token: string, password: string): Promise<void> {
-    const hashedToken = hashToken(token);
+  // ─────────────────────────────────────────────
+  // Reset Password
+  // ─────────────────────────────────────────────
 
-    const user = await userRepository.findByPasswordResetToken(hashedToken);
+  async resetPassword(email: string, otp: string, password: string): Promise<void> {
+    const user = await userRepository.findByPasswordResetOtp(email);
 
     if (!user) {
-      throw new UnauthorizedError('Invalid password reset link.');
+      throw new UnauthorizedError('Invalid password reset request.');
     }
 
-    if (!user.passwordResetTokenExpiresAt || user.passwordResetTokenExpiresAt < new Date()) {
-      throw new UnauthorizedError('Password reset link has expired.');
+    if (!user.passwordResetOtpExpiresAt || user.passwordResetOtpExpiresAt < new Date()) {
+      throw new UnauthorizedError('Password reset code has expired.');
+    }
+
+    if (!user.passwordResetOtp) {
+      throw new UnauthorizedError('Password reset code is invalid.');
+    }
+
+    const isOtpValid = await compareOtp(otp, user.passwordResetOtp);
+
+    if (!isOtpValid) {
+      throw new UnauthorizedError('Invalid password reset code.');
     }
 
     const passwordHash = await hashPassword(password);
 
     await userRepository.updatePassword(user.id, passwordHash);
 
-    await userRepository.clearPasswordResetToken(user.id);
+    // Make OTP unusable immediately.
+    await userRepository.clearPasswordResetOtp(user.id);
 
-    await deleteSession(user.id);
+    // Invalidate existing sessions.
+    try {
+      await deleteSession(user.id);
+    } catch (error) {
+      logger.error(
+        {
+          error,
+          userId: user.id,
+        },
+        'Failed to invalidate sessions after password reset',
+      );
+    }
   }
 }
 

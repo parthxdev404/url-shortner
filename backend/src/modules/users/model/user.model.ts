@@ -1,4 +1,4 @@
-import { InferSchemaType, HydratedDocument, model, Schema } from 'mongoose';
+import { InferSchemaType, model, Schema } from 'mongoose';
 
 export enum UserRole {
   USER = 'USER',
@@ -45,6 +45,10 @@ const userSchema = new Schema(
       default: null,
     },
 
+    // ─────────────────────────────────────
+    // Email verification
+    // ─────────────────────────────────────
+
     verificationOtp: {
       type: String,
       default: null,
@@ -57,13 +61,17 @@ const userSchema = new Schema(
       select: false,
     },
 
-    passwordResetToken: {
+    // ─────────────────────────────────────
+    // Password reset
+    // ─────────────────────────────────────
+
+    passwordResetOtp: {
       type: String,
       default: null,
       select: false,
     },
 
-    passwordResetTokenExpiresAt: {
+    passwordResetOtpExpiresAt: {
       type: Date,
       default: null,
       select: false,
@@ -81,6 +89,7 @@ userSchema.index({
 });
 
 export type UserSchema = InferSchemaType<typeof userSchema>;
-export type UserDocument = HydratedDocument<UserSchema>;
 
 export const UserModel = model<UserSchema>('User', userSchema, 'users');
+
+export type UserDocument = ReturnType<typeof UserModel.hydrate>;

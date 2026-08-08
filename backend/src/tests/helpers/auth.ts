@@ -1,40 +1,75 @@
 import request from 'supertest';
 
 import app from './app';
-import { registerUser } from './user';
 
-type CreateAuthenticatedUserOptions = {
-  verifyEmail?: boolean;
-};
+import { UserModel } from '../../modules/users/model/user.model';
+import { hashPassword } from '../../shared/utils/password';
 
-export async function createAuthenticatedUser(options: CreateAuthenticatedUserOptions = {}) {
-  const { verifyEmail = false } = options;
+interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  password: string;
+  accessToken: string;
+  refreshToken: string;
+}
 
-  const { payload, user } = await registerUser();
+export async function createAuthenticatedUser(): Promise<AuthenticatedUser> {
+  const email = `test-${Date.now()}@example.com`;
+  const password = 'Password123!';
 
-  // If your app requires verified users before login,
-  // we'll implement this later.
-  if (verifyEmail) {
-    // TODO:
-    // await verifyUser(user.id);
+  const passwordHash = await hashPassword(password);
+
+  // Create an already-verified user directly in the database.
+  // This helper is intentionally NOT testing:
+  // register -> verify email -> login.
+  const user = await UserModel.create({
+    name: 'Test User',
+    email,
+    passwordHash,
+    isVerified: true,
+  });
+
+  // Confirm the value actually persisted.
+  const savedUser = await UserModel.findById(user.id);
+
+  if (!savedUser) {
+    throw new Error('Test user was not created.');
+  }
+
+  if (!savedUser.isVerified) {
+    throw new Error(
+      `Test user was created but isVerified is false.\n` +
+        `User: ${JSON.stringify(savedUser.toObject(), null, 2)}`,
+    );
   }
 
   const response = await request(app).post('/api/v1/auth/login').send({
-    email: payload.email,
-    password: payload.password,
+    email,
+    password,
   });
 
   if (response.status !== 200) {
     throw new Error(
-      `Login failed during test setup.\nStatus: ${response.status}\nBody: ${JSON.stringify(response.body, null, 2)}`,
+      `Login failed during test setup.\n` +
+        `Status: ${response.status}\n` +
+        `Body: ${JSON.stringify(response.body, null, 2)}\n` +
+        `Created user: ${JSON.stringify(
+          {
+            id: savedUser.id,
+            email: savedUser.email,
+            isVerified: savedUser.isVerified,
+          },
+          null,
+          2,
+        )}`,
     );
   }
 
   return {
-    user,
-    payload,
+    userId: savedUser.id,
+    email,
+    password,
     accessToken: response.body.data.accessToken,
     refreshToken: response.body.data.refreshToken,
-    cookies: response.headers['set-cookie'] ?? [],
   };
 }

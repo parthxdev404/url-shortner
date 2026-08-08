@@ -35,6 +35,10 @@ export class UserRepository {
     );
   }
 
+  // -----------------------------
+  // Email verification
+  // -----------------------------
+
   async updateVerificationOtp(
     id: string,
     verificationOtp: string,
@@ -73,16 +77,20 @@ export class UserRepository {
     );
   }
 
-  async updatePasswordResetToken(
+  // -----------------------------
+  // Password reset
+  // -----------------------------
+
+  async updatePasswordResetOtp(
     id: string,
-    passwordResetToken: string,
-    passwordResetTokenExpiresAt: Date,
+    passwordResetOtp: string,
+    passwordResetOtpExpiresAt: Date,
   ): Promise<UserDocument | null> {
     return UserModel.findByIdAndUpdate(
       id,
       {
-        passwordResetToken,
-        passwordResetTokenExpiresAt,
+        passwordResetOtp,
+        passwordResetOtpExpiresAt,
       },
       {
         returnDocument: 'after',
@@ -90,29 +98,32 @@ export class UserRepository {
     );
   }
 
-  async findByPasswordResetToken(passwordResetToken: string): Promise<UserDocument | null> {
-    return UserModel.findOne({ passwordResetToken });
+  async findByPasswordResetOtp(email: string) {
+    return UserModel.findOne({
+      email,
+    }).select('+passwordResetOtp +passwordResetOtpExpiresAt');
   }
 
   async updatePassword(id: string, passwordHash: string): Promise<UserDocument | null> {
     return UserModel.findByIdAndUpdate(
       id,
-      { passwordHash },
+      {
+        passwordHash,
+      },
       {
         returnDocument: 'after',
       },
     );
   }
 
-  async clearPasswordResetToken(id: string): Promise<UserDocument | null> {
-    return UserModel.findByIdAndUpdate(
-      id,
+  async clearPasswordResetOtp(userId: string): Promise<void> {
+    await UserModel.updateOne(
+      { _id: userId },
       {
-        passwordResetToken: null,
-        passwordResetTokenExpiresAt: null,
-      },
-      {
-        returnDocument: 'after',
+        $set: {
+          passwordResetOtp: null,
+          passwordResetOtpExpiresAt: null,
+        },
       },
     );
   }
