@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
-import { Link } from "react-router-dom";
-import type { FormErrors, RegisterData } from "../../types/auth.types";
+import { Link, useNavigate } from "react-router-dom";
+import type { FormErrors } from "../../types/auth.types";
+import { registerUser } from "../../utils/auth";
 
 export const SignUp = () => {
-  const [formData, setFormData] = useState<RegisterData>({
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
@@ -12,27 +15,76 @@ export const SignUp = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
 
+  const generateOtp = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
+    });
+
+    setErrors({
+      ...errors,
+      [name]: "",
     });
   };
 
-  const submitHandler = async (e: React.FormEvent) => {
+  const submitHandler = (e: React.FormEvent) => {
     e.preventDefault();
 
     let newErrors: FormErrors = {};
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("All Fields are Required");
-      return;
+
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
     }
-    if (formData.password.length < 8) {
-      newErrors.password = "Password Must Be 8 Characters Long";
+
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
     }
+
+    // Password validation
+    if (!formData.password.trim()) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+    }
+
     setErrors(newErrors);
 
+    // Stop if validation fails
     if (Object.keys(newErrors).length > 0) return;
+
+    const otp = generateOtp();
+    sessionStorage.setItem("linkfore_otp", otp);
+    sessionStorage.setItem("linkforge_verification_email", formData.email);
+
+    console.log("OTP", otp);
+
+    navigate("/verify-email");
+
+    try {
+      // Register the user
+      registerUser({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      // Registration successful
+      navigate("/login");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrors({
+          email: error.message,
+        });
+      }
+    }
   };
 
   return (
@@ -56,6 +108,7 @@ export const SignUp = () => {
 
           <div className="mt-10 flex items-center gap-3">
             <div className="h-2 w-2 rounded-full bg-black" />
+
             <span className="text-sm font-medium text-black/50">
               Free forever. No credit card required.
             </span>
@@ -65,7 +118,7 @@ export const SignUp = () => {
         {/* Signup Form */}
         <div className="w-full">
           <form onSubmit={submitHandler} className="mx-auto w-full max-w-md">
-            {/* Mobile Logo / Heading */}
+            {/* Header */}
             <div className="text-center lg:text-left">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
                 Create your account
@@ -86,13 +139,16 @@ export const SignUp = () => {
               className="mt-8 flex h-13 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition hover:bg-black/[0.03] sm:text-base"
             >
               <FcGoogle size={21} />
+
               <span>Continue with Google</span>
             </button>
 
             {/* Divider */}
             <div className="my-7 flex items-center gap-4">
               <div className="h-px flex-1 bg-black/10" />
+
               <span className="text-xs font-medium text-black/35">OR</span>
+
               <div className="h-px flex-1 bg-black/10" />
             </div>
 
@@ -112,8 +168,18 @@ export const SignUp = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter your name"
-                className="h-13 w-full rounded-xl border border-black/10 bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:border-black focus:bg-white sm:text-base"
+                className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
+                  errors.name
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-black/10 focus:border-black"
+                }`}
               />
+
+              {errors.name && (
+                <p className="mt-2 text-xs font-medium text-red-600 sm:text-sm">
+                  {errors.name}
+                </p>
+              )}
             </div>
 
             {/* Email */}
@@ -132,8 +198,18 @@ export const SignUp = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className="h-13 w-full rounded-xl border border-black/10 bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:border-black focus:bg-white sm:text-base"
+                className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
+                  errors.email
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-black/10 focus:border-black"
+                }`}
               />
+
+              {errors.email && (
+                <p className="mt-2 text-xs font-medium text-red-600 sm:text-sm">
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             {/* Password */}
@@ -152,7 +228,11 @@ export const SignUp = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Create a password"
-                className="h-13 w-full rounded-xl border border-black/10 bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:border-black focus:bg-white sm:text-base"
+                className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
+                  errors.password
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-black/10 focus:border-black"
+                }`}
               />
 
               {errors.password && (
@@ -181,6 +261,7 @@ export const SignUp = () => {
               </Link>
             </p>
 
+            {/* Terms */}
             <p className="mt-5 text-center text-xs leading-relaxed text-black/30">
               By creating an account, you agree to our terms and conditions.
             </p>

@@ -1,10 +1,15 @@
 import React, { useState } from "react";
-import LoginImg from "../../assets/Computer login-bro.png";
 import { FcGoogle } from "react-icons/fc";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import LoginImg from "../../assets/Computer login-bro.png";
 import type { FormErrors } from "../../types/auth.types";
+import { useAuth } from "../../context/AuthContext";
+import { loginUser } from "../../utils/auth";
 
 export const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -13,41 +18,61 @@ export const Login = () => {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
 
     setErrors({
       ...errors,
-      [e.target.name]: "",
+      [name]: "",
     });
   };
 
-  const submitHandler = async (e: React.FormEvent) => {
+  const submitHandler = (e: React.FormEvent) => {
     e.preventDefault();
 
     let newErrors: FormErrors = {};
 
-    if (formData.email.trim() === "") {
+    // Email validation
+    if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     }
 
-    if (formData.password.trim() === "") {
+    // Password validation
+    if (!formData.password.trim()) {
       newErrors.password = "Password is required";
     }
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length > 0) return;
+    // Stop if validation fails
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
 
-    // Login API call goes here
+    try {
+      // Authenticate user
+      loginUser(formData.email.trim(), formData.password);
+      login();
+
+      // Successful login
+      navigate("/");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrors({
+          password: error.message,
+        });
+      }
+    }
   };
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-5 py-16 sm:px-8 lg:px-12">
       <div className="grid w-full max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-20 xl:gap-28">
-        {/* Left — Login Form */}
+        {/* Login Form */}
         <div className="order-2 w-full lg:order-1">
           <form onSubmit={submitHandler} className="mx-auto w-full max-w-md">
             {/* Header */}
@@ -66,7 +91,7 @@ export const Login = () => {
               </p>
             </div>
 
-            {/* Google Login */}
+            {/* Google */}
             <button
               type="button"
               className="mt-8 flex h-13 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition hover:bg-black/[0.03] sm:text-base"
@@ -161,8 +186,8 @@ export const Login = () => {
               Log In
             </button>
 
-            {/* Signup */}
-            <p className="mt-6 text-center text-sm text-black/50 sm:text-base">
+            {/* Register */}
+            <p className="mt-6 text-center text-sm text-black/50">
               Don't have an account?{" "}
               <Link
                 to="/register"
@@ -174,9 +199,9 @@ export const Login = () => {
           </form>
         </div>
 
-        {/* Right — Illustration */}
+        {/* Illustration */}
         <div className="order-1 hidden items-center justify-center lg:order-2 lg:flex">
-          <div className="relative flex w-full items-center justify-center">
+          <div className="flex w-full items-center justify-center">
             <img
               src={LoginImg}
               alt="Login to LinkForge"
