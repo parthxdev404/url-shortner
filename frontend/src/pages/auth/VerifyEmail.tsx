@@ -1,6 +1,8 @@
 import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { authService } from "../../services/authService";
+
 const OTP_LENGTH = 6;
 
 export const VerifyEmail = () => {
@@ -10,23 +12,31 @@ export const VerifyEmail = () => {
 
   const [loading, setLoading] = useState(false);
 
+  const [resending, setResending] = useState(false);
+
   const [verificationStatus, setVerificationStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const email = sessionStorage.getItem("linkforge_verification_email") || "";
 
   const handleChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
 
-    if (!/^\d?$/.test(value)) return;
+    if (!/^\d?$/.test(value)) {
+      return;
+    }
 
     const newOtp = [...otp];
     newOtp[index] = value;
 
     setOtp(newOtp);
-
     setVerificationStatus("idle");
+    setErrorMessage("");
 
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
@@ -38,7 +48,8 @@ export const VerifyEmail = () => {
       inputRefs.current[index - 1]?.focus();
     }
   };
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+
+  const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
 
     const pastedValue = e.clipboardData
@@ -46,7 +57,9 @@ export const VerifyEmail = () => {
       .replace(/\D/g, "")
       .slice(0, OTP_LENGTH);
 
-    if (!pastedValue) return;
+    if (!pastedValue) {
+      return;
+    }
 
     const newOtp = Array(OTP_LENGTH).fill("");
 
@@ -56,6 +69,7 @@ export const VerifyEmail = () => {
 
     setOtp(newOtp);
     setVerificationStatus("idle");
+    setErrorMessage("");
 
     const nextIndex = Math.min(pastedValue.length, OTP_LENGTH - 1);
 
@@ -65,64 +79,82 @@ export const VerifyEmail = () => {
   const handleSubmit = async () => {
     const enteredOtp = otp.join("");
 
+    if (!email) {
+      setVerificationStatus("error");
+      setErrorMessage("Verification email is missing. Please register again.");
+      return;
+    }
+
     if (enteredOtp.length !== OTP_LENGTH) {
       return;
     }
 
-    const correctOtp = sessionStorage.getItem("linkforge_otp");
+    try {
+      setLoading(true);
+      setVerificationStatus("idle");
+      setErrorMessage("");
 
-    setLoading(true);
-    setVerificationStatus("idle");
+      await authService.verifyEmail({
+        email,
+        otp: enteredOtp,
+      });
 
-    // Temporary delay until real API is connected
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (!correctOtp) {
-      setVerificationStatus("error");
-      setLoading(false);
-      return;
-    }
-
-    if (enteredOtp === correctOtp) {
       setVerificationStatus("success");
 
-      // OTP is no longer needed
-      sessionStorage.removeItem("linkforge_otp");
+      sessionStorage.removeItem("linkforge_verification_email");
 
-      // Give the user a moment to see success state
       setTimeout(() => {
         navigate("/login");
       }, 700);
-    } else {
+    } catch (error) {
       setVerificationStatus("error");
-    }
 
-    setLoading(false);
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Invalid or expired verification code.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /*
-   * -----------------------------------------
-   * Resend OTP
-   * -----------------------------------------
-   */
-  const handleResend = () => {
-    // Temporary implementation.
-    // Real API will generate/send a new OTP.
-    console.log("Resend OTP");
+  const handleResend = async () => {
+    if (!email) {
+      setVerificationStatus("error");
+      setErrorMessage("Verification email is missing. Please register again.");
+      return;
+    }
 
-    setOtp(Array(OTP_LENGTH).fill(""));
-    setVerificationStatus("idle");
+    try {
+      setResending(true);
+      setVerificationStatus("idle");
+      setErrorMessage("");
 
-    inputRefs.current[0]?.focus();
+      await authService.resendVerificationOtp({
+        email,
+      });
+
+      setOtp(Array(OTP_LENGTH).fill(""));
+
+      inputRefs.current[0]?.focus();
+    } catch (error) {
+      setVerificationStatus("error");
+
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          "Unable to resend the verification code. Please try again.",
+        );
+      }
+    } finally {
+      setResending(false);
+    }
   };
 
   const isComplete = otp.every(Boolean);
 
-  /*
-   * -----------------------------------------
-   * OTP input styles
-   * -----------------------------------------
-   */
   const getInputClassName = () => {
     if (verificationStatus === "success") {
       return `
@@ -152,152 +184,157 @@ export const VerifyEmail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white px-5 py-10 sm:px-8 lg:px-12">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-7xl items-center">
-        <div className="grid w-full grid-cols-1 items-center gap-14 lg:grid-cols-2 lg:gap-20">
-          <div className="hidden lg:block">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
-              LinkForge
-            </p>
+    <div className="min-h-screen">
+      <div className="mx-auto grid min-h-screen max-w-7xl items-center gap-16 px-6 py-12 lg:grid-cols-2 lg:px-10">
+        {/* Left Content */}
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
+            LinkForge
+          </p>
 
-            <h1 className="mt-5 max-w-xl text-6xl font-bold leading-[1.02] tracking-tight text-black xl:text-7xl">
-              One more step.
-              <span className="block text-black/35">Verify your email.</span>
-            </h1>
+          <h1 className="mt-5 max-w-xl text-6xl font-bold leading-[1.02] tracking-tight text-black xl:text-7xl">
+            One more step.
+            <span className="block text-black/35">Verify your email.</span>
+          </h1>
 
-            <p className="mt-7 max-w-lg text-lg leading-relaxed text-black/50">
-              We sent a 6-digit verification code to your email. Confirm your
-              email address to continue using LinkForge.
-            </p>
+          <p className="mt-7 max-w-lg text-lg leading-relaxed text-black/50">
+            We sent a 6-digit verification code to your email. Confirm your
+            email address to continue using LinkForge.
+          </p>
 
-            <div className="mt-10 flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-black" />
+          <div className="mt-10 flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-black" />
 
-              <span className="text-sm font-medium text-black/50">
-                Your account is almost ready.
-              </span>
-            </div>
+            <span className="text-sm font-medium text-black/50">
+              Your account is almost ready.
+            </span>
           </div>
-          <div className="w-full">
-            <div className="mx-auto w-full max-w-md">
-              {/* Header */}
-              <div className="text-center lg:text-left">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
-                  Email verification
-                </p>
+        </div>
 
-                <h2 className="mt-3 text-3xl font-bold tracking-tight text-black sm:text-4xl">
-                  Verify your email.
-                </h2>
+        {/* Verification Form */}
+        <div className="w-full">
+          <div className="mx-auto w-full max-w-md">
+            {/* Header */}
+            <div className="text-center lg:text-left">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
+                Email verification
+              </p>
 
-                <p className="mt-3 text-sm leading-relaxed text-black/50 sm:text-base">
-                  Enter the 6-digit verification code sent to your email
-                  address.
-                </p>
-              </div>
-              <div className="mt-9 flex justify-center gap-2.5 sm:gap-3.5 lg:justify-start">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(element) => {
-                      inputRefs.current[index] = element;
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleChange(index, e)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={handlePaste}
-                    autoComplete={index === 0 ? "one-time-code" : "off"}
-                    aria-label={`OTP digit ${index + 1}`}
-                    disabled={loading}
-                    className={`
-                      h-12 w-10
-                      rounded-xl
-                      border
-                      text-center
-                      text-lg
-                      font-semibold
-                      outline-none
-                      transition-all
-                      duration-200
-                      sm:h-14
-                      sm:w-12
-                      sm:text-xl
-                      ${getInputClassName()}
-                      disabled:cursor-not-allowed
-                      disabled:opacity-70
-                    `}
-                  />
-                ))}
-              </div>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-black sm:text-4xl">
+                Verify your email.
+              </h2>
 
-              {verificationStatus === "success" && (
-                <p className="mt-4 text-center text-sm font-medium text-green-600 lg:text-left">
-                  Email verified successfully!
-                </p>
-              )}
+              <p className="mt-3 text-sm leading-relaxed text-black/50 sm:text-base">
+                Enter the 6-digit verification code sent to your email address.
+              </p>
+            </div>
 
-              {verificationStatus === "error" && (
-                <p className="mt-4 text-center text-sm font-medium text-red-600 lg:text-left">
-                  Invalid or expired verification code.
-                </p>
-              )}
+            {/* OTP Inputs */}
+            <div className="mt-9 flex justify-center gap-2.5 sm:gap-3.5 lg:justify-start">
+              {otp.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(element) => {
+                    inputRefs.current[index] = element;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleChange(index, e)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={handlePaste}
+                  autoComplete={index === 0 ? "one-time-code" : "off"}
+                  aria-label={`OTP digit ${index + 1}`}
+                  disabled={loading || resending}
+                  className={`
+                    h-12
+                    w-10
+                    rounded-xl
+                    border
+                    text-center
+                    text-lg
+                    font-semibold
+                    outline-none
+                    transition-all
+                    duration-200
+                    sm:h-14
+                    sm:w-12
+                    sm:text-xl
+                    ${getInputClassName()}
+                    disabled:cursor-not-allowed
+                    disabled:opacity-70
+                  `}
+                />
+              ))}
+            </div>
+
+            {/* Success */}
+            {verificationStatus === "success" && (
+              <p className="mt-4 text-center text-sm font-medium text-green-600 lg:text-left">
+                Email verified successfully!
+              </p>
+            )}
+
+            {/* Error */}
+            {verificationStatus === "error" && (
+              <p className="mt-4 text-center text-sm font-medium text-red-600 lg:text-left">
+                {errorMessage || "Invalid or expired verification code."}
+              </p>
+            )}
+
+            {/* Verify Button */}
+            <button
+              type="button"
+              disabled={!isComplete || loading || resending}
+              onClick={handleSubmit}
+              className={`
+                mt-8
+                flex
+                h-13
+                w-full
+                items-center
+                justify-center
+                rounded-full
+                px-6
+                text-sm
+                font-semibold
+                transition-all
+                duration-200
+                sm:text-base
+                ${
+                  verificationStatus === "success"
+                    ? "bg-green-600 text-white"
+                    : "bg-black text-white hover:bg-black/80"
+                }
+                disabled:cursor-not-allowed
+                disabled:bg-black/20
+              `}
+            >
+              {loading
+                ? "Verifying..."
+                : verificationStatus === "success"
+                  ? "Verified!"
+                  : "Verify Email"}
+            </button>
+
+            {/* Resend */}
+            <div className="mt-7 text-center">
+              <p className="text-sm text-black/50">Didn't receive the code?</p>
 
               <button
                 type="button"
-                disabled={!isComplete || loading}
-                onClick={handleSubmit}
-                className={`
-                  mt-8
-                  flex
-                  h-13
-                  w-full
-                  items-center
-                  justify-center
-                  rounded-full
-                  px-6
-                  text-sm
-                  font-semibold
-                  transition-all
-                  duration-200
-                  sm:text-base
-                  ${
-                    verificationStatus === "success"
-                      ? "bg-green-600 text-white"
-                      : "bg-black text-white hover:bg-black/80"
-                  }
-                  disabled:cursor-not-allowed
-                  disabled:bg-black/20
-                `}
+                onClick={handleResend}
+                disabled={loading || resending}
+                className="mt-1 cursor-pointer text-sm font-semibold text-black transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading
-                  ? "Verifying..."
-                  : verificationStatus === "success"
-                    ? "Verified!"
-                    : "Verify Email"}
+                {resending ? "Sending..." : "Resend code"}
               </button>
-
-              <div className="mt-7 text-center">
-                <p className="text-sm text-black/50">
-                  Didn't receive the code?
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={loading}
-                  className="mt-1 cursor-pointer text-sm font-semibold text-black transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Resend code
-                </button>
-              </div>
-
-              <p className="mt-8 text-center text-xs leading-relaxed text-black/30">
-                Check your spam or promotions folder if you don't see the email.
-              </p>
             </div>
+
+            <p className="mt-8 text-center text-xs leading-relaxed text-black/30">
+              Check your spam or promotions folder if you don't see the email.
+            </p>
           </div>
         </div>
       </div>
