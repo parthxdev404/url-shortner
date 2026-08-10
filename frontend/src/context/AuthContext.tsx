@@ -1,201 +1,227 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-
 import {
-  authService,
-  type ForgotPasswordPayload,
-  type LoginPayload,
-  type RegisterPayload,
-  type ResetPasswordPayload,
-  type User,
-  type VerifyEmailPayload,
-  type ResendVerificationOtpPayload,
-} from "../services/authService";
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+import { authService, type User } from "../services/authService";
+import { tokenStorage } from "../utils/token";
 
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  register: (payload: RegisterPayload) => Promise<void>;
+  login: (payload: { email: string; password: string }) => Promise<void>;
 
-  login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: {
+    name: string;
+    email: string;
+    password: string;
+  }) => Promise<void>;
 
-  verifyEmail: (payload: VerifyEmailPayload) => Promise<void>;
+  verifyEmail: (payload: { email: string; otp: string }) => Promise<void>;
 
-  resendVerificationOtp: (
-    payload: ResendVerificationOtpPayload,
-  ) => Promise<void>;
+  resendVerificationOtp: (email: string) => Promise<void>;
 
-  forgotPassword: (payload: ForgotPasswordPayload) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
 
-  resetPassword: (payload: ResetPasswordPayload) => Promise<void>;
+  resetPassword: (payload: {
+    email: string;
+    otp: string;
+    password: string;
+  }) => Promise<void>;
 
-  refreshAuth: () => Promise<void>;
+  refreshAuthToken: () => Promise<boolean>;
 
   logout: () => Promise<void>;
+
+  fetchCurrentUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ACCESS_TOKEN_KEY = "linkforge_access_token";
-const REFRESH_TOKEN_KEY = "linkforge_refresh_token";
+type AuthProviderProps = {
+  children: ReactNode;
+};
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAuthenticated = user !== null;
+  const fetchCurrentUser = async () => {
+    try {
+      const accessToken = tokenStorage.getAccessToken();
 
-  const register = async (payload: RegisterPayload): Promise<void> => {
-    await authService.register(payload);
+      if (!accessToken) {
+        setUser(null);
+        return;
+      }
+
+      const response = await authService.me();
+
+      if (response.success && response.data) {
+        setUser(response.data);
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    }
   };
 
-  const login = async (payload: LoginPayload): Promise<void> => {
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        await fetchCurrentUser();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  const login = async (payload: { email: string; password: string }) => {
     const response = await authService.login(payload);
 
-    const { accessToken, refreshToken, user } = response.data;
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Unable to log in.");
+    }
 
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    const { accessToken, refreshToken, user: loggedInUser } = response.data;
 
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    tokenStorage.setTokens(accessToken, refreshToken);
 
-    setUser(user);
+    setUser(loggedInUser);
   };
 
-  const verifyEmail = async (payload: VerifyEmailPayload): Promise<void> => {
-    await authService.verifyEmail(payload);
+  const register = async (payload: {
+    name: string;
+    email: string;
+    password: string;
+  }) => {
+    const response = await authService.register(payload);
+
+    if (!response.success) {
+      throw new Error(response.message || "Unable to register.");
+    }
   };
 
-  const resendVerificationOtp = async (
-    payload: ResendVerificationOtpPayload,
-  ): Promise<void> => {
-    await authService.resendVerificationOtp(payload);
+  const verifyEmail = async (payload: { email: string; otp: string }) => {
+    const response = await authService.verifyEmail(payload);
+
+    if (!response.success) {
+      throw new Error(response.message || "Unable to verify email.");
+    }
   };
 
-  const forgotPassword = async (
-    payload: ForgotPasswordPayload,
-  ): Promise<void> => {
-    await authService.forgotPassword(payload);
+  const resendVerificationOtp = async (email: string) => {
+    const response = await authService.resendVerificationOtp({
+      email,
+    });
+
+    if (!response.success) {
+      throw new Error(
+        response.message || "Unable to resend verification code.",
+      );
+    }
   };
 
-  const resetPassword = async (
-    payload: ResetPasswordPayload,
-  ): Promise<void> => {
-    await authService.resetPassword(payload);
+  const forgotPassword = async (email: string) => {
+    const response = await authService.forgotPassword({
+      email,
+    });
+
+    if (!response.success) {
+      throw new Error(
+        response.message || "Unable to send password reset code.",
+      );
+    }
   };
 
-  const refreshAuth = async (): Promise<void> => {
+  const resetPassword = async (payload: {
+    email: string;
+    otp: string;
+    password: string;
+  }) => {
+    const response = await authService.resetPassword(payload);
+
+    if (!response.success) {
+      throw new Error(response.message || "Unable to reset password.");
+    }
+  };
+
+  const refreshAuthToken = async (): Promise<boolean> => {
     try {
-      const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-
-      // No tokens means the user is logged out.
-      if (!accessToken && !refreshToken) {
-        setUser(null);
-        return;
-      }
-
-      // First try the existing access token.
-      if (accessToken) {
-        try {
-          const response = await authService.me();
-
-          setUser(response.data);
-
-          return;
-        } catch {
-          // Access token may have expired.
-          // Continue to refresh-token flow.
-        }
-      }
+      const refreshToken = tokenStorage.getRefreshToken();
 
       if (!refreshToken) {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-
-        setUser(null);
-
-        return;
+        return false;
       }
 
       const response = await authService.refreshToken({
         refreshToken,
       });
 
-      const newAccessToken = response.data.accessToken;
+      if (!response.success || !response.data) {
+        tokenStorage.clearTokens();
+        setUser(null);
 
-      const newRefreshToken = response.data.refreshToken;
+        return false;
+      }
 
-      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-      localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+      tokenStorage.setTokens(accessToken, newRefreshToken);
 
-      const meResponse = await authService.me();
-
-      setUser(meResponse.data);
+      return true;
     } catch {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-
+      tokenStorage.clearTokens();
       setUser(null);
+
+      return false;
     }
   };
 
-  const logout = async (): Promise<void> => {
+  const logout = async () => {
     try {
-      if (user) {
+      if (tokenStorage.getAccessToken()) {
         await authService.logout();
       }
     } finally {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-
+      tokenStorage.clearTokens();
       setUser(null);
     }
   };
 
-  useEffect(() => {
-    const restoreAuth = async () => {
-      try {
-        await refreshAuth();
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
 
-    void restoreAuth();
-  }, []);
+    login,
+    register,
+    verifyEmail,
+    resendVerificationOtp,
+    forgotPassword,
+    resetPassword,
+    refreshAuthToken,
+    logout,
+    fetchCurrentUser,
+  };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        isLoading,
-
-        register,
-        login,
-        verifyEmail,
-        resendVerificationOtp,
-        forgotPassword,
-        resetPassword,
-
-        refreshAuth,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error("useAuth must be used inside AuthProvider");
+    throw new Error("useAuth must be used inside an AuthProvider");
   }
 
   return context;

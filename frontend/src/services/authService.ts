@@ -56,11 +56,6 @@ export type LoginResponse = {
   refreshToken: string;
 };
 
-export type RefreshTokenResponse = {
-  accessToken: string;
-  refreshToken: string;
-};
-
 export type ApiResponse<T> = {
   success: boolean;
   message?: string;
@@ -68,7 +63,6 @@ export type ApiResponse<T> = {
 };
 
 export const authService = {
-  // Register
   async register(payload: RegisterPayload): Promise<ApiResponse<User>> {
     const response = await api.post<ApiResponse<User>>(
       "/auth/register",
@@ -78,10 +72,8 @@ export const authService = {
     return response.data;
   },
 
-  async verifyEmail(
-    payload: VerifyEmailPayload,
-  ): Promise<ApiResponse<undefined>> {
-    const response = await api.post<ApiResponse<undefined>>(
+  async verifyEmail(payload: VerifyEmailPayload): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(
       "/auth/verify-email",
       payload,
     );
@@ -91,8 +83,8 @@ export const authService = {
 
   async resendVerificationOtp(
     payload: ResendVerificationOtpPayload,
-  ): Promise<ApiResponse<undefined>> {
-    const response = await api.post<ApiResponse<undefined>>(
+  ): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(
       "/auth/resend-verification-otp",
       payload,
     );
@@ -117,8 +109,8 @@ export const authService = {
 
   async refreshToken(
     payload: RefreshTokenPayload,
-  ): Promise<ApiResponse<RefreshTokenResponse>> {
-    const response = await api.post<ApiResponse<RefreshTokenResponse>>(
+  ): Promise<ApiResponse<AuthTokens>> {
+    const response = await api.post<ApiResponse<AuthTokens>>(
       "/auth/refresh",
       payload,
     );
@@ -126,16 +118,16 @@ export const authService = {
     return response.data;
   },
 
-  async logout(): Promise<ApiResponse<undefined>> {
-    const response = await api.post<ApiResponse<undefined>>("/auth/logout");
+  async logout(): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>("/auth/logout");
 
     return response.data;
   },
 
   async forgotPassword(
     payload: ForgotPasswordPayload,
-  ): Promise<ApiResponse<undefined>> {
-    const response = await api.post<ApiResponse<undefined>>(
+  ): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(
       "/auth/forgot-password",
       payload,
     );
@@ -145,8 +137,8 @@ export const authService = {
 
   async resetPassword(
     payload: ResetPasswordPayload,
-  ): Promise<ApiResponse<undefined>> {
-    const response = await api.post<ApiResponse<undefined>>(
+  ): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(
       "/auth/reset-password",
       payload,
     );
