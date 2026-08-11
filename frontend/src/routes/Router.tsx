@@ -6,23 +6,68 @@ import { HomeRouter } from "../pages/HomeRouter";
 import { VerifyEmail } from "../pages/auth/VerifyEmail";
 import { ForgotPassword } from "../pages/auth/ForgotPassword";
 import { ResetPassword } from "../pages/auth/ResetPassword";
-
+import { Settings } from "../pages/Settings";
+import { Urls } from "../pages/url/UrlPage";
+import { PublicRoute } from "./PublicRoute";
 import { ProtectedRoute } from "../pages/auth/ProtectedRoute";
-import { useAuth } from "../context/AuthContext";
+import { CreateLink } from "../components/url/CreateLink";
 
 export const Router = () => {
-  const { isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-sm font-medium text-black/50">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <Routes>
+      {/* =========================
+          PUBLIC AUTH ROUTES
+      ========================= */}
+
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <SignUp />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/verify-email"
+        element={
+          <PublicRoute>
+            <VerifyEmail />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/reset-password"
+        element={
+          <PublicRoute>
+            <ResetPassword />
+          </PublicRoute>
+        }
+      />
+
+      {/* =========================
+          PROTECTED APPLICATION
+      ========================= */}
+
       <Route
         path="/"
         element={
@@ -32,15 +77,24 @@ export const Router = () => {
         }
       />
 
-      <Route path="/register" element={<SignUp />} />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
 
-      <Route path="/login" element={<Login />} />
-
-      <Route path="/verify-email" element={<VerifyEmail />} />
-
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/create"
+        element={
+          <ProtectedRoute>
+            <CreateLink />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/urls" element={<Urls />} />
     </Routes>
   );
 };

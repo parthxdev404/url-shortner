@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, replace, useNavigate } from "react-router-dom";
 
 import LoginImg from "../../assets/Computer login-bro.png";
 import type { FormErrors } from "../../types/auth.types";
@@ -59,7 +59,7 @@ export const Login = () => {
         password: formData.password,
       });
 
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error: unknown) {
       const axiosError = error as {
         response?: {
