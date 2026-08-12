@@ -15,10 +15,6 @@ import { CreateLink } from "../components/url/CreateLink";
 export const Router = () => {
   return (
     <Routes>
-      {/* =========================
-          PUBLIC AUTH ROUTES
-      ========================= */}
-
       <Route
         path="/login"
         element={
@@ -63,10 +59,6 @@ export const Router = () => {
           </PublicRoute>
         }
       />
-
-      {/* =========================
-          PROTECTED APPLICATION
-      ========================= */}
 
       <Route
         path="/"

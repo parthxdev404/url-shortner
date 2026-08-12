@@ -85,6 +85,14 @@ export const urlService = {
     return response.data;
   },
 
+  activate: async (id: string): Promise<ApiResponse<null>> => {
+    const response = await api.patch<ApiResponse<null>>(
+      `/urls/id/${id}/activate`,
+    );
+
+    return response.data;
+  },
+
   deactivate: async (id: string): Promise<ApiResponse<null>> => {
     const response = await api.patch<ApiResponse<null>>(
       `/urls/id/${id}/deactivate`,

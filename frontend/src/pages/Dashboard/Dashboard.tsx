@@ -53,8 +53,6 @@ type DashboardResponse = {
   message?: string;
 };
 
-const BACKEND_URL = "http://localhost:5000";
-
 export const Dashboard = () => {
   const navigate = useNavigate();
 
@@ -66,9 +64,12 @@ export const Dashboard = () => {
 
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (silent = false) => {
     try {
-      setError(null);
+      if (!silent) {
+        setError(null);
+        setIsLoading(true);
+      }
 
       const response = await api.get<DashboardResponse>("/dashboard");
 
@@ -80,28 +81,45 @@ export const Dashboard = () => {
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
 
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unable to load dashboard.");
+      if (!silent) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Unable to load dashboard.");
+        }
       }
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (!silent) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(false);
+  }, [fetchDashboard]);
+
+  useEffect(() => {
+    const handleUrlsChanged = () => {
+      // Silent background refresh
+      fetchDashboard(true);
+    };
+
+    window.addEventListener("urls:changed", handleUrlsChanged);
+
+    return () => {
+      window.removeEventListener("urls:changed", handleUrlsChanged);
+    };
   }, [fetchDashboard]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchDashboard();
+    await fetchDashboard(false);
   };
 
   const handleCopy = async (shortCode: string) => {
-    const shortUrl = `${BACKEND_URL}/${shortCode}`;
+    const shortUrl = `${import.meta.env.VITE_API_BASE_URL}/urls/${shortCode}`;
 
     try {
       await navigator.clipboard.writeText(shortUrl);
@@ -125,7 +143,7 @@ export const Dashboard = () => {
   };
 
   const getShortUrl = (shortCode: string) => {
-    return `${BACKEND_URL}/${shortCode}`;
+    return `${import.meta.env.VITE_API_BASE_URL}/urls/${shortCode}`;
   };
 
   const getDomain = (url: string) => {
@@ -203,7 +221,7 @@ export const Dashboard = () => {
 
             <button
               type="button"
-              onClick={fetchDashboard}
+              onClick={handleRefresh}
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white"
             >
               <RefreshCw className="h-4 w-4" />
