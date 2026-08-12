@@ -91,6 +91,19 @@ class UrlController {
     });
   });
 
+  activate = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
+    const url = await urlService.activateUrl(id, userId);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'URL activated successfully',
+      data: url,
+    });
+  });
+
   deactivate = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const userId = req.user!.id;
@@ -99,7 +112,7 @@ class UrlController {
 
     res.status(StatusCodes.OK).json({
       success: true,
-      message: 'Url Deactivated Successfully',
+      message: 'URL deactivated successfully',
     });
   });
 
@@ -111,7 +124,7 @@ class UrlController {
 
     res.status(StatusCodes.OK).json({
       success: true,
-      message: 'Url Deleted Successfully',
+      message: 'URL deleted successfully',
     });
   });
 

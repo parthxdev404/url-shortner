@@ -1,15 +1,16 @@
+import { Types, SortOrder } from 'mongoose';
+
 import { UrlModel, UrlSchema, UrlDocument } from '../model/url.model';
-import { SortOrder } from 'mongoose';
 import { UpdateUrlBody } from '../validation/update-urls.schema';
 
-type GetUserUrlsOption = {
+export type GetUserUrlsOption = {
   userId: string;
   page: number;
   limit: number;
   sortBy: 'clicks' | 'expiresAt' | 'createdAt';
   order: 'asc' | 'desc';
-  search?: string | undefined;
-  status?: 'active' | 'expired' | 'inactive' | undefined;
+  search?: string;
+  status?: 'active' | 'expired' | 'inactive';
 };
 
 export class UrlRepository {
@@ -20,21 +21,50 @@ export class UrlRepository {
   }
 
   async findByShortCode(shortCode: string): Promise<UrlDocument | null> {
-    return UrlModel.findOne({ shortCode, isDeleted: false });
+    return UrlModel.findOne({
+      shortCode,
+      isDeleted: false,
+    });
   }
 
   async existsByShortCode(shortCode: string): Promise<{ _id: unknown } | null> {
-    return UrlModel.exists({ shortCode, isDeleted: false });
+    return UrlModel.exists({
+      shortCode,
+      isDeleted: false,
+    });
   }
 
   async findById(id: string): Promise<UrlDocument | null> {
-    return UrlModel.findOne({ _id: id, isDeleted: false });
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
+    return UrlModel.findOne({
+      _id: new Types.ObjectId(id),
+      isDeleted: false,
+    });
+  }
+
+  async findOwnedById(id: string, userId: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
+    return UrlModel.findOne({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(userId),
+      isDeleted: false,
+    });
   }
 
   async incrementClicks(id: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
     return UrlModel.findOneAndUpdate(
       {
-        _id: id,
+        _id: new Types.ObjectId(id),
         isDeleted: false,
       },
       {
@@ -54,9 +84,17 @@ export class UrlRepository {
   }> {
     const { userId, page, limit, search, status, sortBy, order } = options;
 
+    if (!Types.ObjectId.isValid(userId)) {
+      return {
+        urls: [],
+        total: 0,
+      };
+    }
+
     const conditions: Record<string, unknown>[] = [
       {
-        userId,
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
       },
     ];
 
@@ -97,12 +135,14 @@ export class UrlRepository {
             },
           ],
         });
+
         break;
 
       case 'inactive':
         conditions.push({
           isActive: false,
         });
+
         break;
 
       case 'expired':
@@ -111,14 +151,13 @@ export class UrlRepository {
             $lte: new Date(),
           },
         });
+
         break;
     }
 
-    const [firstCondition] = conditions;
-
-    const filter: Record<string, unknown> =
-      conditions.length === 1 && firstCondition
-        ? firstCondition
+    const filter =
+      conditions.length === 1
+        ? conditions[0]
         : {
             $and: conditions,
           };
@@ -132,6 +171,7 @@ export class UrlRepository {
 
     const [urls, total] = await Promise.all([
       UrlModel.find(filter).sort(sort).skip(skip).limit(limit),
+
       UrlModel.countDocuments(filter),
     ]);
 
@@ -142,10 +182,15 @@ export class UrlRepository {
   }
 
   async updateById(id: string, userId: string, data: UpdateUrlBody): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
     return UrlModel.findOneAndUpdate(
       {
-        _id: id,
-        userId,
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
       },
       data,
       {
@@ -155,14 +200,43 @@ export class UrlRepository {
     );
   }
 
-  async deactivateById(id: string): Promise<UrlDocument | null> {
+  async activate(id: string, userId: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
     return UrlModel.findOneAndUpdate(
       {
-        _id: id,
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
         isDeleted: false,
       },
       {
-        isActive: false,
+        $set: {
+          isActive: true,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  async deactivate(id: string, userId: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
+    return UrlModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
+      },
+      {
+        $set: {
+          isActive: false,
+        },
       },
       {
         new: true,
@@ -171,15 +245,21 @@ export class UrlRepository {
   }
 
   async softDeleteById(id: string, userId: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
     return UrlModel.findOneAndUpdate(
       {
-        _id: id,
-        userId,
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
         isDeleted: false,
       },
       {
-        isDeleted: true,
-        deletedAt: new Date(),
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
       },
       {
         new: true,
@@ -188,15 +268,21 @@ export class UrlRepository {
   }
 
   async restoreById(id: string, userId: string): Promise<UrlDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
     return UrlModel.findOneAndUpdate(
       {
-        _id: id,
-        userId,
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
         isDeleted: true,
       },
       {
-        isDeleted: false,
-        deletedAt: null,
+        $set: {
+          isDeleted: false,
+          deletedAt: null,
+        },
       },
       {
         new: true,
@@ -205,10 +291,22 @@ export class UrlRepository {
   }
 
   async bulkSoftDelete(userId: string, ids: string[]): Promise<number> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return 0;
+    }
+
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return 0;
+    }
+
     const result = await UrlModel.updateMany(
       {
-        _id: { $in: ids },
-        userId,
+        _id: {
+          $in: validIds.map((id) => new Types.ObjectId(id)),
+        },
+        userId: new Types.ObjectId(userId),
         isDeleted: false,
       },
       {
@@ -223,18 +321,42 @@ export class UrlRepository {
   }
 
   async findManyByIds(userId: string, ids: string[]): Promise<UrlDocument[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return [];
+    }
+
     return UrlModel.find({
-      _id: { $in: ids },
-      userId,
+      _id: {
+        $in: validIds.map((id) => new Types.ObjectId(id)),
+      },
+      userId: new Types.ObjectId(userId),
       isDeleted: false,
     });
   }
 
   async bulkRestore(userId: string, ids: string[]): Promise<number> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return 0;
+    }
+
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return 0;
+    }
+
     const result = await UrlModel.updateMany(
       {
-        _id: { $in: ids },
-        userId,
+        _id: {
+          $in: validIds.map((id) => new Types.ObjectId(id)),
+        },
+        userId: new Types.ObjectId(userId),
         isDeleted: true,
       },
       {
@@ -249,18 +371,42 @@ export class UrlRepository {
   }
 
   async findManyDeletedByIds(userId: string, ids: string[]): Promise<UrlDocument[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return [];
+    }
+
     return UrlModel.find({
-      _id: { $in: ids },
-      userId,
+      _id: {
+        $in: validIds.map((id) => new Types.ObjectId(id)),
+      },
+      userId: new Types.ObjectId(userId),
       isDeleted: true,
     });
   }
 
   async bulkDeactivate(userId: string, ids: string[]): Promise<number> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return 0;
+    }
+
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return 0;
+    }
+
     const result = await UrlModel.updateMany(
       {
-        _id: { $in: ids },
-        userId,
+        _id: {
+          $in: validIds.map((id) => new Types.ObjectId(id)),
+        },
+        userId: new Types.ObjectId(userId),
         isDeleted: false,
       },
       {

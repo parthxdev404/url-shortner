@@ -1,13 +1,23 @@
-import { urlRepository } from '../repositories/url.repository';
+import { GetUserUrlsOption, urlRepository } from '../repositories/url.repository';
+
 import { generateShortCode } from '../../../shared/utils/generateShortCode';
+
 import { UrlDocument } from '../model/url.model';
+
 import { Types } from 'mongoose';
+
 import { ConflictError, NotFoundError } from '../../../shared/errors';
+
 import { cacheService } from '../../../shared/cache/cache.service';
+
 import { CACHE_KEYS } from '../../../shared/cache/cache.key';
+
 import { CACHE_TTL } from '../../../shared/cache/cache.ttl';
+
 import { CachedUrlDocument } from '../types/url-cache';
+
 import { GetMyUrlsQuery } from '../validation/get-my-url-schema';
+
 import { UpdateUrlBody } from '../validation/update-urls.schema';
 
 type GetMyUrlsResponse = {
@@ -28,6 +38,10 @@ export class UrlService {
     originalUrl: string,
     customAlias?: string,
   ): Promise<UrlDocument> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new NotFoundError('User not found.');
+    }
+
     if (customAlias) {
       const exists = await urlRepository.existsByShortCode(customAlias);
 
@@ -73,7 +87,6 @@ export class UrlService {
     }
 
     const url = await urlRepository.findByShortCode(shortCode);
-    console.log('mongo lookup');
 
     if (!url) {
       throw new NotFoundError('Short URL not found.');
@@ -98,8 +111,6 @@ export class UrlService {
 
     await cacheService.set(CACHE_KEYS.url(shortCode), cachedUrl, CACHE_TTL.URL);
 
-    console.log('cache stored');
-
     return cachedUrl;
   }
 
@@ -111,21 +122,48 @@ export class UrlService {
     }
   }
 
-  async deactivateUrl(id: string, userId: string): Promise<void> {
-    const url = await urlRepository.findById(id);
+  async activateUrl(id: string, userId: string): Promise<UrlDocument> {
+    const url = await urlRepository.findOwnedById(id, userId);
 
     if (!url) {
       throw new NotFoundError('URL not found.');
     }
 
-    if (url.userId.toString() !== userId) {
+    if (url.isActive) {
+      return url;
+    }
+
+    const updated = await urlRepository.activate(id, userId);
+
+    if (!updated) {
       throw new NotFoundError('URL not found.');
     }
 
-    await urlRepository.deactivateById(id);
+    await cacheService.delete(CACHE_KEYS.url(updated.shortCode));
 
-    await cacheService.delete(CACHE_KEYS.url(url.shortCode));
+    return updated;
   }
+
+  async deactivateUrl(id: string, userId: string): Promise<void> {
+    const url = await urlRepository.findOwnedById(id, userId);
+
+    if (!url) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    if (!url.isActive) {
+      return;
+    }
+
+    const updated = await urlRepository.deactivate(id, userId);
+
+    if (!updated) {
+      throw new NotFoundError('URL not found.');
+    }
+
+    await cacheService.delete(CACHE_KEYS.url(updated.shortCode));
+  }
+
   async deleteUrl(id: string, userId: string): Promise<void> {
     const deletedUrl = await urlRepository.softDeleteById(id, userId);
 
@@ -135,11 +173,25 @@ export class UrlService {
 
     await cacheService.delete(CACHE_KEYS.url(deletedUrl.shortCode));
   }
+
   async getMyUrls(userId: string, query: GetMyUrlsQuery): Promise<GetMyUrlsResponse> {
-    const result = await urlRepository.findByUser({
+    const options: GetUserUrlsOption = {
       userId,
-      ...query,
-    });
+      page: query.page,
+      limit: query.limit,
+      sortBy: query.sortBy,
+      order: query.order,
+    };
+
+    if (query.search !== undefined) {
+      options.search = query.search;
+    }
+
+    if (query.status !== undefined) {
+      options.status = query.status;
+    }
+
+    const result = await urlRepository.findByUser(options);
 
     return {
       items: result.urls,
@@ -153,22 +205,20 @@ export class UrlService {
   }
 
   async updateUrl(id: string, userId: string, data: UpdateUrlBody): Promise<UrlDocument> {
-    const url = await urlRepository.findById(id);
+    const url = await urlRepository.findOwnedById(id, userId);
 
     if (!url) {
-      throw new NotFoundError('Url Not Found');
-    }
-
-    if (url.userId.toString() !== userId) {
-      throw new NotFoundError('Url Not Found');
+      throw new NotFoundError('URL not found.');
     }
 
     const updatedUrl = await urlRepository.updateById(id, userId, data);
+
     if (!updatedUrl) {
-      throw new NotFoundError('Url Not Found');
+      throw new NotFoundError('URL not found.');
     }
 
     await cacheService.delete(CACHE_KEYS.url(updatedUrl.shortCode));
+
     return updatedUrl;
   }
 
@@ -206,4 +256,5 @@ export class UrlService {
     await Promise.all(urls.map((url) => cacheService.delete(CACHE_KEYS.url(url.shortCode))));
   }
 }
+
 export const urlService = new UrlService();
