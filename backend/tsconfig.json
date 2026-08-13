@@ -24,8 +24,7 @@
     "declaration": true,
     "declarationMap": true,
 
-    "incremental": true,
-    "tsBuildInfoFile": ".tsbuildinfo",
+    "incremental": false,
 
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
