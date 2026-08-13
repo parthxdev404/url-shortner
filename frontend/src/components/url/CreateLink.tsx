@@ -61,7 +61,7 @@ export const CreateLink = ({ onCreated }: CreateLinkProps) => {
         throw new Error(response.message || "Unable to create short URL.");
       }
 
-      const shortUrl = `${import.meta.env.VITE_API_BASE_URL}/urls/${response.data.shortCode}`;
+      const shortUrl = `${import.meta.env.VITE_API_BASE_URL}/api/v1/urls/${response.data.shortCode}`;
 
       setCreatedUrl(shortUrl);
 

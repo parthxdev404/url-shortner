@@ -143,7 +143,7 @@ export const Dashboard = () => {
   };
 
   const getShortUrl = (shortCode: string) => {
-    return `${import.meta.env.VITE_API_BASE_URL}/urls/${shortCode}`;
+    return `${import.meta.env.VITE_API_BASE_URL}/api/v1/urls/${shortCode}`;
   };
 
   const getDomain = (url: string) => {
