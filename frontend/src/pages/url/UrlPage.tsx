@@ -90,7 +90,7 @@ export const Urls = () => {
   const getShortUrl = (shortCode: string) => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-    return `${apiBaseUrl}/urls/${shortCode}`;
+    return `${apiBaseUrl}/api/v1/urls/${shortCode}`;
   };
 
   const getErrorMessage = (error: unknown, fallback: string): string => {

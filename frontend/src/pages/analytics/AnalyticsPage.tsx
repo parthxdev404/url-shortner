@@ -6,7 +6,6 @@ import {
   Globe,
   Globe2,
   Laptop,
-  Loader2,
   Monitor,
   MousePointerClick,
   RefreshCw,

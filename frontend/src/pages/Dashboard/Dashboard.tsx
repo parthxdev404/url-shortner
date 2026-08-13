@@ -119,7 +119,7 @@ export const Dashboard = () => {
   };
 
   const handleCopy = async (shortCode: string) => {
-    const shortUrl = `${import.meta.env.VITE_API_BASE_URL}/urls/${shortCode}`;
+    const shortUrl = `${import.meta.env.VITE_API_BASE_URL}api/v1/urls/${shortCode}`;
 
     try {
       await navigator.clipboard.writeText(shortUrl);
