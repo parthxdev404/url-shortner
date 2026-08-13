@@ -8,7 +8,7 @@ import { UrlModel } from '../../modules/url/model/url.model';
 
 describe('Bulk URL Actions', () => {
   describe('PATCH /api/v1/urls/bulk/deactivate', () => {
-    it('should deactivate multiple urls', async () => {
+    it('should deactivate multiple URLs', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url1 = await createUrl(token);
@@ -23,7 +23,6 @@ describe('Bulk URL Actions', () => {
         });
 
       expect(response.status).toBe(200);
-
       expect(response.body.success).toBe(true);
 
       const urls = await UrlModel.find({
@@ -32,7 +31,8 @@ describe('Bulk URL Actions', () => {
         },
       });
 
-      expect(urls.every((u) => u.isActive === false)).toBe(true);
+      expect(urls).toHaveLength(3);
+      expect(urls.every((url) => url.isActive === false)).toBe(true);
     });
 
     it('should require authentication', async () => {
@@ -58,7 +58,7 @@ describe('Bulk URL Actions', () => {
       expect(response.status).toBe(400);
     });
 
-    it("should not deactivate another user's urls", async () => {
+    it("should not deactivate another user's URLs", async () => {
       const owner = await createAuthenticatedUser();
       const attacker = await createAuthenticatedUser();
 
@@ -75,12 +75,13 @@ describe('Bulk URL Actions', () => {
 
       const updated = await UrlModel.findById(url._id);
 
+      expect(updated).not.toBeNull();
       expect(updated?.isActive).toBe(true);
     });
   });
 
   describe('DELETE /api/v1/urls/bulk', () => {
-    it('should soft delete multiple urls', async () => {
+    it('should soft delete multiple URLs', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url1 = await createUrl(token);
@@ -95,7 +96,6 @@ describe('Bulk URL Actions', () => {
         });
 
       expect(response.status).toBe(200);
-
       expect(response.body.success).toBe(true);
 
       const urls = await UrlModel.find({
@@ -104,7 +104,9 @@ describe('Bulk URL Actions', () => {
         },
       });
 
-      expect(urls.every((u) => u.isDeleted)).toBe(true);
+      expect(urls).toHaveLength(3);
+      expect(urls.every((url) => url.isDeleted === true)).toBe(true);
+      expect(urls.every((url) => url.deletedAt !== null)).toBe(true);
     });
 
     it('should require authentication', async () => {
@@ -130,7 +132,7 @@ describe('Bulk URL Actions', () => {
       expect(response.status).toBe(400);
     });
 
-    it("should not delete another user's urls", async () => {
+    it("should not delete another user's URLs", async () => {
       const owner = await createAuthenticatedUser();
       const attacker = await createAuthenticatedUser();
 
@@ -147,24 +149,44 @@ describe('Bulk URL Actions', () => {
 
       const updated = await UrlModel.findById(url._id);
 
+      expect(updated).not.toBeNull();
       expect(updated?.isDeleted).toBe(false);
+      expect(updated?.deletedAt).toBeNull();
     });
   });
 
   describe('PATCH /api/v1/urls/bulk/restore', () => {
-    it('should restore multiple urls', async () => {
+    it('should restore multiple URLs', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url1 = await createUrl(token);
       const url2 = await createUrl(token);
 
-      await request(app)
-        .delete(`/api/v1/urls/id/${url1._id}`)
-        .set('Authorization', `Bearer ${token}`);
+      /*
+       * IMPORTANT:
+       * Individual DELETE /id/:id is now a HARD DELETE.
+       *
+       * Bulk restore requires soft-deleted URLs,
+       * so we must use the bulk DELETE endpoint here.
+       */
+      const deleteResponse = await request(app)
+        .delete('/api/v1/urls/bulk')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          ids: [url1._id, url2._id],
+        });
 
-      await request(app)
-        .delete(`/api/v1/urls/id/${url2._id}`)
-        .set('Authorization', `Bearer ${token}`);
+      expect(deleteResponse.status).toBe(200);
+      expect(deleteResponse.body.success).toBe(true);
+
+      const deletedUrls = await UrlModel.find({
+        _id: {
+          $in: [url1._id, url2._id],
+        },
+      });
+
+      expect(deletedUrls).toHaveLength(2);
+      expect(deletedUrls.every((url) => url.isDeleted === true)).toBe(true);
 
       const response = await request(app)
         .patch('/api/v1/urls/bulk/restore')
@@ -174,16 +196,19 @@ describe('Bulk URL Actions', () => {
         });
 
       expect(response.status).toBe(200);
-
       expect(response.body.success).toBe(true);
 
-      const urls = await UrlModel.find({
+      const restoredUrls = await UrlModel.find({
         _id: {
           $in: [url1._id, url2._id],
         },
       });
 
-      expect(urls.every((u) => !u.isDeleted)).toBe(true);
+      expect(restoredUrls).toHaveLength(2);
+
+      expect(restoredUrls.every((url) => url.isDeleted === false)).toBe(true);
+
+      expect(restoredUrls.every((url) => url.deletedAt === null)).toBe(true);
     });
 
     it('should require authentication', async () => {
@@ -209,15 +234,30 @@ describe('Bulk URL Actions', () => {
       expect(response.status).toBe(400);
     });
 
-    it("should not restore another user's urls", async () => {
+    it("should not restore another user's URLs", async () => {
       const owner = await createAuthenticatedUser();
       const attacker = await createAuthenticatedUser();
 
       const url = await createUrl(owner.token);
 
-      await request(app)
-        .delete(`/api/v1/urls/id/${url._id}`)
-        .set('Authorization', `Bearer ${owner.token}`);
+      /*
+       * Soft delete the owner's URL using the bulk endpoint.
+       * We cannot use DELETE /id/:id because that permanently
+       * removes the document.
+       */
+      const deleteResponse = await request(app)
+        .delete('/api/v1/urls/bulk')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .send({
+          ids: [url._id],
+        });
+
+      expect(deleteResponse.status).toBe(200);
+
+      const deleted = await UrlModel.findById(url._id);
+
+      expect(deleted).not.toBeNull();
+      expect(deleted?.isDeleted).toBe(true);
 
       const response = await request(app)
         .patch('/api/v1/urls/bulk/restore')
@@ -230,7 +270,14 @@ describe('Bulk URL Actions', () => {
 
       const updated = await UrlModel.findById(url._id);
 
+      expect(updated).not.toBeNull();
+
+      /*
+       * The attacker must not be able to restore
+       * another user's deleted URL.
+       */
       expect(updated?.isDeleted).toBe(true);
+      expect(updated?.deletedAt).not.toBeNull();
     });
   });
 });

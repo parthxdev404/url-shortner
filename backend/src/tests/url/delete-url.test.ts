@@ -6,9 +6,9 @@ import { createAuthenticatedUser } from '../helpers/authenticated-user';
 import { createUrl } from '../helpers/create-url';
 import { UrlModel } from '../../modules/url/model/url.model';
 
-describe('DELETE /api/v1/urls', () => {
-  describe('Soft Delete', () => {
-    it('should soft delete a url', async () => {
+describe('DELETE /api/v1/urls/id/:id', () => {
+  describe('deleteUrl', () => {
+    it('should delete a URL by id', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url = await createUrl(token);
@@ -21,16 +21,15 @@ describe('DELETE /api/v1/urls', () => {
 
       expect(response.body.success).toBe(true);
 
+      expect(response.body.message).toBe('URL deleted successfully');
+
+      // deleteUrl now performs a HARD delete.
       const deleted = await UrlModel.findById(url._id);
 
-      expect(deleted).not.toBeNull();
-
-      expect(deleted?.isDeleted).toBe(true);
-
-      expect(deleted?.deletedAt).not.toBeNull();
+      expect(deleted).toBeNull();
     });
 
-    it('should return 404 for non existing url', async () => {
+    it('should return 404 for a non-existing URL', async () => {
       const { token } = await createAuthenticatedUser();
 
       const response = await request(app)
@@ -40,21 +39,22 @@ describe('DELETE /api/v1/urls', () => {
       expect(response.status).toBe(404);
     });
 
-    it("should not delete another user's url", async () => {
+    it("should not delete another user's URL", async () => {
       const owner = await createAuthenticatedUser();
       const attacker = await createAuthenticatedUser();
 
       const url = await createUrl(owner.token);
 
       const response = await request(app)
-        .delete(`/api/v1/urls/id/${url._id}`)
-        .set('Authorization', `Bearer ${attacker.token}`);
+        .delete(`/api/v1/urls/id/${url._id.toString()}`)
+        .set('Authorization', `Bearer ${attacker.token}`)
+        .expect(404);
 
-      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
 
       const stillExists = await UrlModel.findById(url._id);
 
-      expect(stillExists?.isDeleted).toBe(false);
+      expect(stillExists).not.toBeNull();
     });
 
     it('should require authentication', async () => {
@@ -67,7 +67,7 @@ describe('DELETE /api/v1/urls', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should not be returned by getById after delete', async () => {
+    it('should not be returned by getById after deletion', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url = await createUrl(token);
@@ -83,7 +83,7 @@ describe('DELETE /api/v1/urls', () => {
       expect(response.status).toBe(404);
     });
 
-    it('should not redirect after delete', async () => {
+    it('should not redirect after deletion', async () => {
       const { token } = await createAuthenticatedUser();
 
       const url = await createUrl(token);
