@@ -13,7 +13,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm run build
+RUN npm run build && echo "===== BUILD OUTPUT =====" && ls -la /app/dist && echo "===== SERVER.JS =====" && ls -la /app/dist/server.js
 
 
 FROM node:22-alpine AS runner
