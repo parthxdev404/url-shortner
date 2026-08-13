@@ -1,5 +1,11 @@
 import { cleanEnv, port, str } from 'envalid';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+const isTest = process.env.NODE_ENV === 'test';
+
+dotenv.config({
+  path: isTest ? '.env.test' : '.env',
+});
 
 export const env = cleanEnv(process.env, {
   NODE_ENV: str({
@@ -25,7 +31,6 @@ export const env = cleanEnv(process.env, {
 
   JWT_REFRESH_EXPIRES: str(),
 
-  // Brevo
   BREVO_API_KEY: str(),
 
   EMAIL_FROM: str(),
@@ -33,7 +38,9 @@ export const env = cleanEnv(process.env, {
   EMAIL_FROM_NAME: str(),
 
   APP_URL: str(),
+
   GOOGLE_CLIENT_ID: str(),
+
   GOOGLE_CLIENT_SECRET: str(),
 
   LOG_LEVEL: str({

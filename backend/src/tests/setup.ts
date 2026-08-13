@@ -1,6 +1,6 @@
-process.env.NODE_ENV = 'test';
-
 import { beforeAll, afterAll, beforeEach, vi } from 'vitest';
+
+process.env.NODE_ENV = 'test';
 
 vi.mock('../../shared/queue/jobs/send-verification-email.jobs', async () => {
   const mocks = await import('../tests/mocks/email-jobs.js');
@@ -19,17 +19,22 @@ vi.mock('../../shared/queue/jobs/send-reset-password-email.job', async () => {
 });
 
 import { clearDatabase, connectTestDB, disconnectTestDB } from './helpers/db';
+
 import { redis } from '../infastructure/redis/redis';
 
 beforeAll(async () => {
   await connectTestDB();
 
-  await redis.connect();
+  if (redis.status === 'wait') {
+    await redis.connect();
+  }
+
   await redis.flushdb();
 });
 
 beforeEach(async () => {
   await clearDatabase();
+  await redis.flushdb();
 });
 
 afterAll(async () => {
