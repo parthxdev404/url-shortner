@@ -1,14 +1,14 @@
 import React, { useState } from "react";
-import { FcGoogle } from "react-icons/fc";
-import { Link, replace, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import LoginImg from "../../assets/Computer login-bro.png";
 import type { FormErrors } from "../../types/auth.types";
+import { GoogleAuthButton } from "./GoogleAuthButton";
 import { useAuth } from "../../context/AuthContext";
 
 export const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -17,6 +17,7 @@ export const Login = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -30,6 +31,38 @@ export const Login = () => {
       ...prev,
       [name]: "",
     }));
+  };
+
+  const handleGoogleLogin = async (token: string) => {
+    try {
+      setIsGoogleLoading(true);
+
+      await googleLogin(token);
+
+      navigate("/", {
+        replace: true,
+      });
+    } catch (error: unknown) {
+      const axiosError = error as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      };
+
+      const message =
+        axiosError.response?.data?.message ??
+        (error instanceof Error
+          ? error.message
+          : "Google login failed. Please try again.");
+
+      setErrors({
+        password: message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -59,7 +92,9 @@ export const Login = () => {
         password: formData.password,
       });
 
-      navigate("/", { replace: true });
+      navigate("/", {
+        replace: true,
+      });
     } catch (error: unknown) {
       const axiosError = error as {
         response?: {
@@ -82,6 +117,8 @@ export const Login = () => {
       setIsLoading(false);
     }
   };
+
+  const authLoading = isLoading || isGoogleLoading;
 
   return (
     <div className="min-h-screen bg-white px-5 py-10 sm:px-8 lg:px-12">
@@ -107,14 +144,12 @@ export const Login = () => {
               </div>
 
               {/* Google */}
-              <button
-                type="button"
-                className="mt-8 flex h-13 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition hover:bg-black/[0.03] sm:text-base"
-              >
-                <FcGoogle size={21} />
-
-                <span>Continue with Google</span>
-              </button>
+              <div className="mt-8">
+                <GoogleAuthButton
+                  onSuccess={handleGoogleLogin}
+                  disabled={authLoading}
+                />
+              </div>
 
               {/* Divider */}
               <div className="my-7 flex items-center gap-4">
@@ -141,7 +176,7 @@ export const Login = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
-                  disabled={isLoading}
+                  disabled={authLoading}
                   className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm text-black outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
                     errors.email
                       ? "border-red-500 focus:border-red-500"
@@ -181,7 +216,7 @@ export const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  disabled={isLoading}
+                  disabled={authLoading}
                   className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm text-black outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
                     errors.password
                       ? "border-red-500 focus:border-red-500"
@@ -199,7 +234,7 @@ export const Login = () => {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={authLoading}
                 className="mt-7 flex h-13 w-full cursor-pointer items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/80 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
               >
                 {isLoading ? "Logging in..." : "Log In"}

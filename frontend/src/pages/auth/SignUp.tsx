@@ -1,14 +1,14 @@
 import React, { useState } from "react";
-import { FcGoogle } from "react-icons/fc";
 import { Link, useNavigate } from "react-router-dom";
 
 import type { FormErrors } from "../../types/auth.types";
 import { useAuth } from "../../context/AuthContext";
+import { GoogleAuthButton } from "./GoogleAuthButton";
 
 export const SignUp = () => {
   const navigate = useNavigate();
 
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -17,7 +17,10 @@ export const SignUp = () => {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
   const [isLoading, setIsLoading] = useState(false);
+
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -33,10 +36,51 @@ export const SignUp = () => {
     }));
   };
 
+  // ─────────────────────────────────────────────
+  // Google Sign Up
+  // ─────────────────────────────────────────────
+
+  const handleGoogleLogin = async (token: string) => {
+    try {
+      setIsGoogleLoading(true);
+
+      await googleLogin(token);
+
+      navigate("/", {
+        replace: true,
+      });
+    } catch (error: unknown) {
+      const axiosError = error as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      };
+
+      const message =
+        axiosError.response?.data?.message ??
+        (error instanceof Error
+          ? error.message
+          : "Google sign up failed. Please try again.");
+
+      setErrors({
+        email: message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // Normal Sign Up
+  // ─────────────────────────────────────────────
+
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newErrors: FormErrors = {};
+
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
     }
@@ -67,14 +111,12 @@ export const SignUp = () => {
       });
 
       // Store only the email.
-      // The OTP is generated and sent by the backend.
+      // OTP is generated and sent by backend.
       sessionStorage.setItem(
         "linkforge_verification_email",
         formData.email.trim().toLowerCase(),
       );
 
-      // Registration successful.
-      // User must verify email before login.
       navigate("/verify-email");
     } catch (error: unknown) {
       const axiosError = error as {
@@ -99,11 +141,16 @@ export const SignUp = () => {
     }
   };
 
+  const isAnyLoading = isLoading || isGoogleLoading;
+
   return (
     <div className="min-h-screen bg-white px-5 py-10 sm:px-8 lg:px-12">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-7xl items-center">
         <div className="grid w-full grid-cols-1 items-center gap-16 lg:grid-cols-2 lg:gap-24">
+          {/* ───────────────────────────────────── */}
           {/* Left Content */}
+          {/* ───────────────────────────────────── */}
+
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
               Welcome to LinkForge
@@ -128,7 +175,10 @@ export const SignUp = () => {
             </div>
           </div>
 
+          {/* ───────────────────────────────────── */}
           {/* Signup Form */}
+          {/* ───────────────────────────────────── */}
+
           <div className="w-full">
             <form onSubmit={submitHandler} className="mx-auto w-full max-w-md">
               {/* Header */}
@@ -146,16 +196,16 @@ export const SignUp = () => {
                 </p>
               </div>
 
+              {/* ─────────────────────────────── */}
               {/* Google */}
-              <button
-                type="button"
-                disabled={isLoading}
-                className="mt-8 flex h-13 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-black/10 bg-white px-5 text-sm font-medium text-black transition hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
-              >
-                <FcGoogle size={21} />
+              {/* ─────────────────────────────── */}
 
-                <span>Continue with Google</span>
-              </button>
+              <div className="mt-8">
+                <GoogleAuthButton
+                  onSuccess={handleGoogleLogin}
+                  disabled={isAnyLoading}
+                />
+              </div>
 
               {/* Divider */}
               <div className="my-7 flex items-center gap-4">
@@ -166,7 +216,10 @@ export const SignUp = () => {
                 <div className="h-px flex-1 bg-black/10" />
               </div>
 
+              {/* ─────────────────────────────── */}
               {/* Name */}
+              {/* ─────────────────────────────── */}
+
               <div>
                 <label
                   htmlFor="name"
@@ -182,7 +235,7 @@ export const SignUp = () => {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter your name"
-                  disabled={isLoading}
+                  disabled={isAnyLoading}
                   className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
                     errors.name
                       ? "border-red-500 focus:border-red-500"
@@ -197,7 +250,10 @@ export const SignUp = () => {
                 )}
               </div>
 
+              {/* ─────────────────────────────── */}
               {/* Email */}
+              {/* ─────────────────────────────── */}
+
               <div className="mt-5">
                 <label
                   htmlFor="email"
@@ -213,7 +269,7 @@ export const SignUp = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
-                  disabled={isLoading}
+                  disabled={isAnyLoading}
                   className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
                     errors.email
                       ? "border-red-500 focus:border-red-500"
@@ -228,7 +284,10 @@ export const SignUp = () => {
                 )}
               </div>
 
+              {/* ─────────────────────────────── */}
               {/* Password */}
+              {/* ─────────────────────────────── */}
+
               <div className="mt-5">
                 <label
                   htmlFor="password"
@@ -244,7 +303,7 @@ export const SignUp = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Create a password"
-                  disabled={isLoading}
+                  disabled={isAnyLoading}
                   className={`h-13 w-full rounded-xl border bg-black/[0.02] px-4 text-sm outline-none transition placeholder:text-black/35 focus:bg-white sm:text-base ${
                     errors.password
                       ? "border-red-500 focus:border-red-500"
@@ -259,16 +318,22 @@ export const SignUp = () => {
                 )}
               </div>
 
+              {/* ─────────────────────────────── */}
               {/* Submit */}
+              {/* ─────────────────────────────── */}
+
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isAnyLoading}
                 className="mt-7 flex h-13 w-full cursor-pointer items-center justify-center rounded-full bg-black px-6 text-sm font-semibold text-white transition hover:bg-black/80 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
               >
                 {isLoading ? "Creating account..." : "Create Account"}
               </button>
 
+              {/* ─────────────────────────────── */}
               {/* Login */}
+              {/* ─────────────────────────────── */}
+
               <p className="mt-6 text-center text-sm text-black/50">
                 Already have an account?{" "}
                 <Link

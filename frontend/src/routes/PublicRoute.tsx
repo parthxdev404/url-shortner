@@ -10,12 +10,12 @@ type PublicRouteProps = {
 export const PublicRoute = ({ children }: PublicRouteProps) => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Don't make a routing decision while auth is being restored.
+  // Wait until authentication state has been restored.
   if (isLoading) {
     return null;
   }
 
-  // Already logged in → never show login/register pages.
+  // Logged-in users should never see auth pages.
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }

@@ -34,6 +34,10 @@ export type RefreshTokenPayload = {
   refreshToken: string;
 };
 
+export type GoogleLoginPayload = {
+  token: string;
+};
+
 export type User = {
   id: string;
   name: string;
@@ -86,6 +90,17 @@ export const authService = {
   ): Promise<ApiResponse<null>> {
     const response = await api.post<ApiResponse<null>>(
       "/auth/resend-verification-otp",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  async googleLogin(
+    payload: GoogleLoginPayload,
+  ): Promise<ApiResponse<LoginResponse>> {
+    const response = await api.post<ApiResponse<LoginResponse>>(
+      "/auth/google",
       payload,
     );
 

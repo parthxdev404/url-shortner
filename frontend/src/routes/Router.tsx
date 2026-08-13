@@ -11,10 +11,23 @@ import { Urls } from "../pages/url/UrlPage";
 import { PublicRoute } from "./PublicRoute";
 import { ProtectedRoute } from "../pages/auth/ProtectedRoute";
 import { CreateLink } from "../components/url/CreateLink";
+import { AnalyticsPage } from "../pages/analytics/AnalyticsPage";
 
 export const Router = () => {
   return (
     <Routes>
+      {/* =====================================================
+          HOME
+          Logged out  → Landing
+          Logged in   → Dashboard
+      ===================================================== */}
+      <Route path="/" element={<HomeRouter />} />
+
+      {/* =====================================================
+          PUBLIC AUTH ROUTES
+          Logged in users are redirected to "/"
+      ===================================================== */}
+
       <Route
         path="/login"
         element={
@@ -60,14 +73,10 @@ export const Router = () => {
         }
       />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <HomeRouter />
-          </ProtectedRoute>
-        }
-      />
+      {/* =====================================================
+          PROTECTED APPLICATION ROUTES
+          Logged out users → "/login"
+      ===================================================== */}
 
       <Route
         path="/settings"
@@ -86,7 +95,33 @@ export const Router = () => {
           </ProtectedRoute>
         }
       />
-      <Route path="/urls" element={<Urls />} />
+
+      <Route
+        path="/urls"
+        element={
+          <ProtectedRoute>
+            <Urls />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/urls/:id/analytics"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 };

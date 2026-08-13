@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { authService, type User } from "../services/authService";
+
 import { tokenStorage } from "../utils/token";
 
 type AuthContextType = {
@@ -15,6 +16,8 @@ type AuthContextType = {
   isLoading: boolean;
 
   login: (payload: { email: string; password: string }) => Promise<void>;
+
+  googleLogin: (token: string) => Promise<unknown>;
 
   register: (payload: {
     name: string;
@@ -52,6 +55,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const [isLoading, setIsLoading] = useState(true);
 
+  // ─────────────────────────────────────────────
+  // Current User
+  // ─────────────────────────────────────────────
+
   const fetchCurrentUser = async () => {
     try {
       const accessToken = tokenStorage.getAccessToken();
@@ -73,6 +80,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Initialize authentication
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -84,6 +95,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     initializeAuth();
   }, []);
+
+  // ─────────────────────────────────────────────
+  // Normal Login
+  // ─────────────────────────────────────────────
 
   const login = async (payload: { email: string; password: string }) => {
     const response = await authService.login(payload);
@@ -99,6 +114,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(loggedInUser);
   };
 
+  // ─────────────────────────────────────────────
+  // Google Login
+  // ─────────────────────────────────────────────
+
+  const googleLogin = async (token: string) => {
+    const response = await authService.googleLogin({
+      token,
+    });
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Google login failed.");
+    }
+
+    const { accessToken, refreshToken, user: loggedInUser } = response.data;
+
+    tokenStorage.setTokens(accessToken, refreshToken);
+
+    setUser(loggedInUser);
+
+    return loggedInUser;
+  };
+
+  // ─────────────────────────────────────────────
+  // Register
+  // ─────────────────────────────────────────────
+
   const register = async (payload: {
     name: string;
     email: string;
@@ -111,6 +152,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Verify Email
+  // ─────────────────────────────────────────────
+
   const verifyEmail = async (payload: { email: string; otp: string }) => {
     const response = await authService.verifyEmail(payload);
 
@@ -118,6 +163,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       throw new Error(response.message || "Unable to verify email.");
     }
   };
+
+  // ─────────────────────────────────────────────
+  // Resend Verification OTP
+  // ─────────────────────────────────────────────
 
   const resendVerificationOtp = async (email: string) => {
     const response = await authService.resendVerificationOtp({
@@ -131,6 +180,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Forgot Password
+  // ─────────────────────────────────────────────
+
   const forgotPassword = async (email: string) => {
     const response = await authService.forgotPassword({
       email,
@@ -143,6 +196,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Reset Password
+  // ─────────────────────────────────────────────
+
   const resetPassword = async (payload: {
     email: string;
     otp: string;
@@ -154,6 +211,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       throw new Error(response.message || "Unable to reset password.");
     }
   };
+
+  // ─────────────────────────────────────────────
+  // Refresh Token
+  // ─────────────────────────────────────────────
 
   const refreshAuthToken = async (): Promise<boolean> => {
     try {
@@ -187,6 +248,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Logout
+  // ─────────────────────────────────────────────
+
   const logout = async () => {
     try {
       if (tokenStorage.getAccessToken()) {
@@ -198,18 +263,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // Context
+  // ─────────────────────────────────────────────
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     isLoading,
 
     login,
+    googleLogin,
+
     register,
     verifyEmail,
     resendVerificationOtp,
+
     forgotPassword,
     resetPassword,
+
     refreshAuthToken,
+
     logout,
     fetchCurrentUser,
   };

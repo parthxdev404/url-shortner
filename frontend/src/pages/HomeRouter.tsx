@@ -1,16 +1,15 @@
 import { useAuth } from "../context/AuthContext";
 import { Landing } from "./landing/Landing";
 import { Dashboard } from "./Dashboard/Dashboard";
-import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 export const HomeRouter = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  return isAuthenticated ? (
-    <ProtectedRoute>
-      <Dashboard />
-    </ProtectedRoute>
-  ) : (
-    <Landing />
-  );
+  // Do not render either Landing or Dashboard
+  // until authentication has been restored.
+  if (isLoading) {
+    return null;
+  }
+
+  return isAuthenticated ? <Dashboard /> : <Landing />;
 };
