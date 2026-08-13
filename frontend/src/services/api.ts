@@ -3,7 +3,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { tokenStorage } from "../utils/token";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api/v1`,
   headers: {
     "Content-Type": "application/json",
   },
