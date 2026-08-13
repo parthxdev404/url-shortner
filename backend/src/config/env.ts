@@ -33,6 +33,8 @@ export const env = cleanEnv(process.env, {
   EMAIL_FROM_NAME: str(),
 
   APP_URL: str(),
+  GOOGLE_CLIENT_ID: str(),
+  GOOGLE_CLIENT_SECRET: str(),
 
   LOG_LEVEL: str({
     default: 'info',

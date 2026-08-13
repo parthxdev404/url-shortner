@@ -4,6 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 import { asyncHandler } from '../../../middlewares/async-handler';
 import { authService } from '../services/auth.services';
 import { toUserResponse } from '../../users/utils/user-response';
+import { UnauthorizedError } from '../../../shared/errors';
 
 class AuthController {
   register = asyncHandler(async (req: Request, res: Response) => {
@@ -97,6 +98,24 @@ class AuthController {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: 'Password reset successfully.',
+    });
+  });
+
+  googleLogin = asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.body as {
+      token?: string;
+    };
+
+    if (!token) {
+      throw new UnauthorizedError('Google Token is required');
+    }
+
+    const result = await authService.googleLogin(token);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: 'Google Login Successfull',
+      data: result,
     });
   });
 }

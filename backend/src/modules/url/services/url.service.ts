@@ -165,7 +165,7 @@ export class UrlService {
   }
 
   async deleteUrl(id: string, userId: string): Promise<void> {
-    const deletedUrl = await urlRepository.softDeleteById(id, userId);
+    const deletedUrl = await urlRepository.deleteById(id, userId);
 
     if (!deletedUrl) {
       throw new NotFoundError('URL not found.');

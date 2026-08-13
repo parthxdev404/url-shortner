@@ -9,6 +9,7 @@ import { connectMongoDB, disconnectMongoDB } from './infastructure/database/mong
 import { connectRedis, disconnectRedis } from './infastructure/redis/redis.js';
 import { logger } from './config/logger.js';
 import { scheduleExpiredUrlCleanup } from './shared/queue/jobs/url-cleanup-jobs';
+
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 async function bootstrap(): Promise<void> {

@@ -2,7 +2,8 @@ import { UserModel, UserSchema, UserDocument } from '../model/user.model';
 
 export class UserRepository {
   async create(
-    data: Pick<UserSchema, 'name' | 'email' | 'passwordHash'> & Partial<Pick<UserSchema, 'role'>>,
+    data: Pick<UserSchema, 'name' | 'email' | 'passwordHash' | 'googleId'> &
+      Partial<Pick<UserSchema, 'role'>>,
   ): Promise<UserDocument> {
     return UserModel.create(data);
   }
@@ -17,6 +18,20 @@ export class UserRepository {
 
   async findById(id: string): Promise<UserDocument | null> {
     return UserModel.findById(id);
+  }
+
+  async updateGoogleId(userId: string, googleId: string) {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          googleId,
+        },
+      },
+      {
+        new: true,
+      },
+    );
   }
 
   async findProfileById(id: string): Promise<UserDocument | null> {

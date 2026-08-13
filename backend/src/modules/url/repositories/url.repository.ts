@@ -244,27 +244,15 @@ export class UrlRepository {
     );
   }
 
-  async softDeleteById(id: string, userId: string): Promise<UrlDocument | null> {
+  async deleteById(id: string, userId: string): Promise<UrlDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
       return null;
     }
 
-    return UrlModel.findOneAndUpdate(
-      {
-        _id: new Types.ObjectId(id),
-        userId: new Types.ObjectId(userId),
-        isDeleted: false,
-      },
-      {
-        $set: {
-          isDeleted: true,
-          deletedAt: new Date(),
-        },
-      },
-      {
-        new: true,
-      },
-    );
+    return UrlModel.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(userId),
+    });
   }
 
   async restoreById(id: string, userId: string): Promise<UrlDocument | null> {

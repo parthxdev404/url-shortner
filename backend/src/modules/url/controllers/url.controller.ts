@@ -33,12 +33,20 @@ class UrlController {
 
     await analyticsService.recordClick({
       urlId: new Types.ObjectId(url.id),
+
       ipAddress: req.ip ?? 'Unknown',
+
       userAgent: req.get('user-agent') ?? 'Unknown',
+
       referrer: req.get('referer') ?? null,
+
       browser: ua.browser.name ?? 'Unknown',
+
       os: ua.os.name ?? 'Unknown',
+
       device: ua.device.type ?? 'Desktop',
+
+      // GeoIP removed for now
       country: 'Unknown',
       city: 'Unknown',
     });

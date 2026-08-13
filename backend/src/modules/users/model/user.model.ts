@@ -45,9 +45,11 @@ const userSchema = new Schema(
       default: null,
     },
 
-    // ─────────────────────────────────────
-    // Email verification
-    // ─────────────────────────────────────
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
 
     verificationOtp: {
       type: String,

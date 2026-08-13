@@ -6,6 +6,7 @@ import { ConflictError, UnauthorizedError } from '../../../shared/errors';
 import { comparePassword, hashPassword } from '../../../shared/utils/password';
 
 import { userRepository } from '../../users/repository/user.repository';
+import { verifyGoogleToken } from './google-auth.service';
 
 import {
   generateAccessToken,
@@ -306,6 +307,61 @@ export class AuthService {
         'Failed to invalidate sessions after password reset',
       );
     }
+  }
+
+  // Google login
+
+  async googleLogin(token: string) {
+    const googleUser = await verifyGoogleToken(token);
+
+    const { googleId, name, email } = googleUser;
+
+    let user = await userRepository.findByEmail(email);
+    if (user) {
+      if (user.googleId && user.googleId !== googleId) {
+        throw new UnauthorizedError('This email is already linked to another Google account.');
+      }
+
+      if (!user.googleId) {
+        const updatedUser = await userRepository.updateGoogleId(user.id, googleId);
+
+        if (!updatedUser) {
+          throw new UnauthorizedError('Unable to link Google account.');
+        }
+
+        user = updatedUser;
+      }
+    }
+
+    if (!user) {
+      user = await userRepository.create({
+        name,
+        email,
+        googleId,
+      });
+    }
+
+    await userRepository.updateLastLogin(user.id);
+
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      role: user.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: user.id,
+    });
+
+    await saveSession(user.id, {
+      refreshToken,
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: toUserResponse(user),
+    };
   }
 }
 
