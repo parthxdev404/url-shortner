@@ -2,8 +2,8 @@ import { UserModel, UserSchema, UserDocument } from '../model/user.model';
 
 export class UserRepository {
   async create(
-    data: Pick<UserSchema, 'name' | 'email' | 'passwordHash' | 'googleId'> &
-      Partial<Pick<UserSchema, 'role'>>,
+    data: Pick<UserSchema, 'name' | 'email'> &
+      Partial<Pick<UserSchema, 'passwordHash' | 'googleId' | 'role'>>,
   ): Promise<UserDocument> {
     return UserModel.create(data);
   }
